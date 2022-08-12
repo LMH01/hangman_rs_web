@@ -1,39 +1,22 @@
-use rocket::http::ContentType;
-
-static mut INDEX: &str = "";
-static mut SCRIPT: &str = "";
+use rocket::{http::{ContentType, CookieJar, Cookie}, fs::FileServer, fs::relative, serde::json::Json};
+use serde::Deserialize;
+mod game;
 
 #[macro_use] extern crate rocket;
 
-#[get("/")]
-fn hello() -> String {
-    "Hello, World".to_string()
+#[launch]
+fn rocket() -> _ {
+    rocket::build().mount("/", FileServer::from(relative!("web"))).mount("/", routes![register])
 }
 
-#[get("/base")]
-fn base() -> (ContentType, &'static str) {
-    unsafe {
-        (ContentType::HTML, INDEX)
-    }
-}
-
-#[get("/script.js")]
-fn script() -> (ContentType, &'static str) {
-    unsafe {
-        (ContentType::JavaScript, SCRIPT)
-    }
-}
-
-#[get("/api/register")]
-fn register() -> (ContentType, &'static str) {
+#[post("/api/register", data = "<username>")]
+fn register(cookies: &CookieJar<'_>, username: Json<Username<'_>>) -> (ContentType, &'static str) {
+    println!("Username: {}", username.username);
+    cookies.add(Cookie::new("userid", username.username.to_string()));
     (ContentType::Text, "3")
 }
 
-#[launch]
-fn rocket() -> _ {
-    unsafe {
-        INDEX = include_str!("../web/index.html");
-        SCRIPT = include_str!("../web/script.js");
-    }
-    rocket::build().mount("/", routes![hello, base, script, register])
+#[derive(Deserialize)]
+struct Username<'a> {
+    username: &'a str,
 }
