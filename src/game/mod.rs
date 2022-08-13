@@ -2,6 +2,8 @@ use std::{fs, i32::MAX};
 use rand::Rng;
 use rocket::{log::private::info, State, tokio::sync::broadcast::Sender};
 
+use crate::EventData;
+
 const MAX_LIVES: i32 = 10;
 
 pub struct GameManager {
@@ -37,13 +39,13 @@ impl GameManager {
     /// # result_id
     /// '2' player has been added to existing game and game starts
     /// '3' new game has been created and player is waiting for second player
-    pub fn register_game(&mut self, name: String, event: &State<Sender<String>>) -> RegisterResult {
+    pub fn register_game(&mut self, name: String, event: &State<Sender<EventData>>) -> RegisterResult {
         // Determine if a game is already open or if a new one should be created
         let mut new_game = false;
         let mut game = match self.current_open_game.take() {
             Some(game) => {
                 info!("Starting new game.");
-                let _e = event.send(String::from("message"));
+                let _e = event.send(EventData::new(0, String::from("game_start")));
                 game
             },
             None => {
@@ -164,13 +166,30 @@ impl Game {
     /// If the game is lost the whole word is returned;
     pub fn game_string(&self) -> String {
         let mut string = String::new();
+        let mut first_letter = true;
         for letter in &self.word.letters {
+            if !first_letter {
+                string.push(' ');
+            } else {
+                first_letter = false;
+            }
             match letter.guessed {
                 true => string.push(letter.character),
                 false => string.push('_'),
             };
         }
         string
+    }
+
+    /// This function can be used to retrieve the word without the white spaces after the word was guessed or the game has ended.
+    /// # Returns
+    /// 'Option(String)' when the word was guessed correctly, string is the word
+    /// 'None' when the word is not yet guessed
+    pub fn word(&self) ->  Option<String> {
+        match self.game_state {
+            GameState::DONE => Some(self.word.get()),
+            _ => None,
+        }
     }
 
     /// Guesses a letter and returns a number to indicate that status:
@@ -180,7 +199,12 @@ impl Game {
     /// '3' letter was false
     /// '4' letter was false and all lives are gone
     /// '5' letter was not guessed because it is not the players turn
-    pub fn guess_letter(&mut self, user_id: i32, c: char, event: &State<Sender<String>>) -> i32 {
+    pub fn guess_letter(&mut self, user_id: i32, c: char, event: &State<Sender<EventData>>) -> i32 {
+        let current_player = self.current_player;
+        let next_player = match self.players.len()-1 == self.current_player {
+            true => 0,
+            false => self.current_player + 1,
+        };
         // check if user is current player
         if self.players[self.current_player].id == user_id {
             match self.players.len()-1 == self.current_player {
@@ -199,7 +223,7 @@ impl Game {
             }
         }
         if something_guessed && !self.solved() {
-            let _x = event.send(String::from("2"));
+            let _x = event.send(EventData::new(next_player, String::from("letter_correct")));
             return 2;
         }
         // check lives
@@ -207,14 +231,14 @@ impl Game {
         if self.lives == 0 || self.solved() {
             self.game_state = GameState::DONE;
             if self.solved() {
-                let _x = event.send(String::from("1"));
+                let _x = event.send(EventData::new(0, String::from("solved")));
                 return 1;
             } else if self.lives == 0 {
-                let _x = event.send(String::from("4"));
+                let _x = event.send(EventData::new(0, String::from("lost")));
                 return 4;
             }
         }
-        let _x = event.send(String::from("3"));
+        let _x = event.send(EventData::new(next_player, String::from("letter_false")));
         3
     }
 
@@ -275,6 +299,16 @@ impl Word {
             letters 
         }
     }
+
+    /// # Return
+    /// The word that this type represents
+    fn get(&self) -> String {
+        let mut s = String::new();
+        for l in &self.letters {
+            s.push(l.character);
+        }
+        s
+    }
 }
 
 struct Letter {
@@ -288,22 +322,5 @@ impl Letter {
             character, 
             guessed: false 
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::GameManager;
-
-
-    #[test]
-    fn game_by_player_id_works() {
-        let mut game_manager = GameManager::new();
-        game_manager.register_game(String::from("Player1"));
-        game_manager.register_game(String::from("Player2"));
-        assert_eq!(1, game_manager.games.len());
-        assert_eq!(2, game_manager.player_ids.len());
-        let game = &game_manager.games[0];
-        assert_eq!(2, game.players.len());
     }
 }

@@ -100,7 +100,7 @@ function loggedin() {
   document.getElementById("login").hidden = true;
   document.getElementById("waitingroom").hidden = false;
   console.log("logged in");
-  new EventSource('/sse').addEventListener("message", msg => { console.log(msg.data); startGame() });
+  //new EventSource('/sse').addEventListener("message", msg => { console.log(msg.data); startGame() });
 }
 
 function startGame() {
@@ -110,38 +110,7 @@ function startGame() {
   image();
   document.getElementById("waitingroom").hidden = true;
   document.getElementById("game").hidden = false;
-  new EventSource('/sse').addEventListener("message", msg => { console.log(msg.data); p2event(msg.data) });
-}
-
-async function p2event(data) {
-  console.log("p2event data: " + data);
-  switch (data) {
-    case "1": image();
-      gameend(true);
-      break;
-    case "2":
-      printWord();
-      printLives();
-      image();
-      if (myturn(await (await (fetch("api/player_number", { headers: { "username": username } }))).text())) {
-        document.getElementById("turn").innerHTML = "Your turn! Type one letter. The other Players guess was right.";
-      } else
-        document.getElementById("turn").innerHTML = "Well Done! Now its the other Players turn.";
-      break;
-    case "3":
-      printLives();
-      printWord();
-      image();
-      if (myturn(await (await (fetch("api/player_number", { headers: { "username": username } }))).text())) {
-        document.getElementById("turn").innerHTML = "Your turn! Type one letter. The other Players guess was wrong.";
-      } else
-        document.getElementById("turn").innerHTML = "Nice Try. Now its the other players turn.";
-      break;
-    case "4":
-      image();
-      gameend(false);
-      break;
-  }
+  //new EventSource('/sse').addEventListener("message", msg => { console.log(msg.data); p2event(msg.data) });
 }
 
 async function gameInput() {
@@ -202,6 +171,7 @@ function myturn(number) {
 }
 
 async function gameend(tf) {
+  image();
   printWord();
   document.getElementById("game").hidden = true;
   document.getElementById("gameend").hidden = false;
@@ -210,14 +180,60 @@ async function gameend(tf) {
     document.getElementById("wonlost").innerHTML = "You won";
   else
     document.getElementById("wonlost").innerHTML = "You lost";
-  document.getElementById("wordwas").innerHTML = "The Word was: " + //document.getElementById("gameword").innerHTML;
-    await (await (await
-      (fetch("api/game_string", {
-        headers: {
-          "username": username
-        }
+  
+  var response = await fetchData('api/word');
+  console.log("Response was: " + response);
+  document.getElementById("wordwas").innerHTML = "The Word was: " + response;
+}
+
+// Subscribes to the event listener at /sse
+function subscribeEvents() {
+  function connect() {
+    const events = new EventSource("/sse");
+
+    events.addEventListener("message", (env) => {
+      var data = env.data;
+      console.log("received data: " + JSON.stringify(data));
+      console.log("decoded data", JSON.stringify(JSON.parse(data)));
+      var msg = JSON.parse(data);
+      switch (msg.data) {
+        case "game_start": 
+          startGame();
+          break;
+        case "solved":
+          gameend(true);
+          break;
+        case "lost":
+          gameend(false);
+          break;
+        case "letter_correct":
+          printWord();
+          printLives();
+          image();
+          if (msg.player != playernumber) {
+            document.getElementById("turn").innerHTML = "Your turn! Type one letter. The other Players guess was right.";
+          } else
+            document.getElementById("turn").innerHTML = "Well Done! Now its the other Players turn.";
+          break;
+        case "letter_false":
+          printLives();
+          printWord();
+          image();
+          if (msg.player != playernumber) {
+            document.getElementById("turn").innerHTML = "Your turn! Type one letter. The other Players guess was wrong.";
+          } else
+            document.getElementById("turn").innerHTML = "Nice Try. Now its the other players turn.";
+          break;
       }
-      ))).text());
+    });
+
+    events.addEventListener("open", () => {
+      console.log(`connected to event stream at /sse`);
+      retryTime = 1;
+    });
+  }
+
+  connect();
 }
 
 // Example POST method implementation:
@@ -240,6 +256,12 @@ async function postData(url = '', data = {}) {
   return response.json(); // parses JSON response into native JavaScript objects
 }
 
+// Submits a get request to the url
+async function fetchData(url = '') {
+  var word = await (await(fetch(url, {}))).text();
+  return word;
+}
+
 //MAIN
 $(document).ready(function () {
   //Login Logic
@@ -254,4 +276,5 @@ $(document).ready(function () {
     loggedin();
     //TODO game waiting room
   }
+  subscribeEvents();
 });
