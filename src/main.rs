@@ -1,7 +1,7 @@
 use std::sync::RwLock;
 
 use game::{GameManager, Game};
-use rocket::{http::{ContentType, CookieJar, Cookie}, fs::FileServer, fs::relative, serde::json::Json, State, request::FromRequest, route::Outcome, Shutdown};
+use rocket::{http::{ContentType, CookieJar, Cookie}, fs::FileServer, fs::relative, serde::json::Json, State, request::FromRequest, route::Outcome, Shutdown, response::Redirect};
 use rocket::response::stream::{EventStream, Event};
 use rocket::serde::{Serialize, Deserialize};
 use rocket::tokio::sync::broadcast::{channel, Sender, error::RecvError};
@@ -15,7 +15,7 @@ mod game;
 fn rocket() -> _ {
     rocket::build()
         .mount("/", FileServer::from(relative!("web")))
-        .mount("/", routes![events, register, submit_char, lives, game_string, player_number, word])
+        .mount("/", routes![events, register, submit_char, lives, game_string, player_number, word, delete_game])
         .manage(RwLock::new(GameManager::new()))
         .manage(channel::<EventData>(1024).0)
 }
@@ -102,7 +102,21 @@ fn player_number(cookies: &CookieJar<'_>, game_manager: &State<RwLock<GameManage
     (ContentType::Text, game.current_player().to_string())
 }
 
-use rocket::tokio::time::{self, Duration};
+#[get("/api/delete_game")]
+fn delete_game(cookies: &CookieJar<'_>, game_manager: &State<RwLock<GameManager>>, event: &State<Sender<EventData>>) -> (ContentType, String) {
+    // I know that in this way the user does not have to confirm the deletion of the game.
+    let userid = match userid_from_cookies(cookies) {
+        Some(id) => id,
+        None => return (ContentType::Text, String::from("User_id not found, game has probably already been deleted")),
+    };
+    let mut game_manager = game_manager.write().unwrap();
+    game_manager.delete_game(userid);
+    // Delete cookie
+    cookies.remove(Cookie::named("userid"));
+    // Send event to users
+    let _x = event.send(EventData::new(0, String::from("game_deleted")));
+    (ContentType::Text, String::from("Game has been deleted, users have been reset"))
+}
 
 #[get("/sse")]
 async fn events(event: &State<Sender<EventData>>, mut end: Shutdown) -> EventStream![] {

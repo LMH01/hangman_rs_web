@@ -186,6 +186,12 @@ async function gameend(tf) {
   document.getElementById("wordwas").innerHTML = "The Word was: " + response;
 }
 
+async function deleteGame() {
+  var response = await fetchData('api/delete_game');
+  console.log(response);
+  location.reload();
+}
+
 // Subscribes to the event listener at /sse
 function subscribeEvents() {
   function connect() {

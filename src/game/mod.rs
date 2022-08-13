@@ -99,6 +99,42 @@ impl GameManager {
         }
         None
     }
+
+    /// Deletes the game for the specified user.
+    /// This will also delete all users that are assigned to that game and free the user ids.
+    /// # Returns
+    /// 'true' game was deleted
+    /// 'false' no game found for user
+    pub fn delete_game(&mut self, id: i32) -> bool {
+        for (index, game) in &mut self.games.iter().enumerate() {
+            for player in &game.players {
+                if player.id == id {
+                    let mut player_ids = Vec::new();
+                    for delete_player in &game.players {
+                        player_ids.push(delete_player.id);
+                    }
+                    self.clear_player_ids(player_ids);
+                    self.games.remove(index);
+                    return true;
+                }
+            }
+        }
+        false
+    }
+
+    /// Removes the player ids from the `player_ids` vector.
+    fn clear_player_ids(&mut self, ids: Vec<i32>) {
+        let mut indices = Vec::new();
+        for (index, e_id) in self.player_ids.iter().enumerate() {
+            if ids.contains(e_id) {
+                indices.push(index);
+            }
+        }
+        indices.reverse();
+        for index in indices {
+            self.player_ids.remove(index);
+        }
+    }
 }
 
 /// Used to represent a result that occurs when [register_game](struct.GameManager.html#method.register_game) is called.
@@ -267,6 +303,7 @@ impl Game {
     }
 }
 
+#[derive(PartialEq)]
 pub struct Player {
     /// Unique number with which the player is identified by the server
     pub id: i32,
