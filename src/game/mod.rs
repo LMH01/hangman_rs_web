@@ -20,7 +20,7 @@ pub struct GameManager {
 impl GameManager {
     pub fn new() -> Self {
         let file = fs::read_to_string("words.txt").expect("Unable to read words file!");
-        let words: Vec<String> = file.split("\n").map(String::from).collect();    
+        let words: Vec<String> = file.split("\n").map(|s| String::from(s).to_uppercase()).collect();    
         Self {
             games: Vec::new(),
             words,
@@ -200,6 +200,7 @@ impl Game {
     /// '4' letter was false and all lives are gone
     /// '5' letter was not guessed because it is not the players turn
     pub fn guess_letter(&mut self, user_id: i32, c: char, event: &State<Sender<EventData>>) -> i32 {
+        let c = c.to_uppercase().to_string().chars().next().unwrap();
         let current_player = self.current_player;
         let next_player = match self.players.len()-1 == self.current_player {
             true => 0,
