@@ -168,30 +168,24 @@ async function gameInput() {
   }
   document.getElementById("turn").value = "Wait for your turn";
 
-  var response = await
-    (await (fetch("api/submit_char", {
-      headers: {
-        "username": username
-        , "char": document.getElementById("input-letter").value[0]
-      }
-    }))).text();
+  var response = await postData('api/submit_char', { character: document.getElementById("input-letter").value[0] });
   console.log(response)
   switch (response) {
-    case "1": image();
+    case 1: image();
       gameend(true);
       break;
-    case "2": image();
+    case 2: image();
       yourturn = false;
       printWord();
       break;
-    case "3": image();
+    case 3: image();
       yourturn = false;
       printLives();
       break;
-    case "4": image();
+    case 4: image();
       gameend(false);
       break;
-    case "5":
+    case 5:
       alert("Not your Turn. Please wait");
       break;
 
@@ -266,4 +260,3 @@ $(document).ready(function () {
     //TODO game waiting room
   }
 });
-
