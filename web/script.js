@@ -99,13 +99,8 @@ function loggedin() {
 
   document.getElementById("login").hidden = true;
   document.getElementById("waitingroom").hidden = false;
-  new EventSource('http://localhost/sse').addEventListener("p2ready", msg => { console.log(msg.data); startGame() });
-}
-
-function playersturn() {
-
-  new EventSource('http://localhost/sseyour').addEventListener("yourturn", msg => { console.log(msg.data); gameInput() });
-
+  console.log("logged in");
+  new EventSource('/sse').addEventListener("message", msg => { console.log(msg.data); startGame() });
 }
 
 function startGame() {
@@ -115,10 +110,11 @@ function startGame() {
   image();
   document.getElementById("waitingroom").hidden = true;
   document.getElementById("game").hidden = false;
-  new EventSource('http://localhost/sse').addEventListener("p2played", msg => { console.log(msg.data); p2event(msg.data) });
+  new EventSource('/sse').addEventListener("message", msg => { console.log(msg.data); p2event(msg.data) });
 }
 
 async function p2event(data) {
+  console.log("p2event data: " + data);
   switch (data) {
     case "1": image();
       gameend(true);
@@ -127,8 +123,7 @@ async function p2event(data) {
       printWord();
       printLives();
       image();
-      if (myturn(await (await (fetch("api/playernumber", { headers: { "username": username } }))).text())) {
-        console.log("AAAAAAAAAAAAAAAAAAAAAAAA");
+      if (myturn(await (await (fetch("api/player_number", { headers: { "username": username } }))).text())) {
         document.getElementById("turn").innerHTML = "Your turn! Type one letter. The other Players guess was right.";
       } else
         document.getElementById("turn").innerHTML = "Well Done! Now its the other Players turn.";
@@ -137,7 +132,7 @@ async function p2event(data) {
       printLives();
       printWord();
       image();
-      if (myturn(await (await (fetch("api/playernumber", { headers: { "username": username } }))).text())) {
+      if (myturn(await (await (fetch("api/player_number", { headers: { "username": username } }))).text())) {
         document.getElementById("turn").innerHTML = "Your turn! Type one letter. The other Players guess was wrong.";
       } else
         document.getElementById("turn").innerHTML = "Nice Try. Now its the other players turn.";
@@ -194,11 +189,11 @@ async function gameInput() {
   document.getElementById("input-letter").value = "";
 }
 
-function myturn(numbar) {
+function myturn(number) {
 
-  console.log("turn:" + numbar);
+  console.log("turn:" + number);
   console.log("playernumber:" + playernumber);
-  if (numbar == playernumber.toString()) {
+  if (number == playernumber.toString()) {
     console.log("MEEE");
     return true;
   }

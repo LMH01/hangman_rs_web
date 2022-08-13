@@ -1,15 +1,15 @@
 use std::{fs, i32::MAX};
 use rand::Rng;
-use rocket::log::private::info;
+use rocket::{log::private::info, State, tokio::sync::broadcast::Sender};
 
 const MAX_LIVES: i32 = 10;
 
 pub struct GameManager {
     /// Contains all games that are currently running
     games: Vec<Game>,
-    /// All words from wich a random word can be choosen for the game
+    /// All words from which a random word can be chosen for the game
     words: Vec<String>,
-    /// All player ids that are already in use
+    /// All player ids that are already in use. A player id uniquely identifies the given player. It is also used to authorize the player against the server.
     player_ids: Vec<i32>,
     /// The current open game where a new player is assigned to
     current_open_game: Option<Game>,
@@ -31,37 +31,39 @@ impl GameManager {
     /// # Params
     /// 'name' the name of the player that registers the new game
     /// # Returns
-    /// 'Some<i32>' registration was successfull, user id is returned
+    /// 'Some<i32>' registration was successful, user id is returned
     /// 'None' registration failed
     /// 
     /// # result_id
     /// '2' player has been added to existing game and game starts
     /// '3' new game has been created and player is waiting for second player
-    pub fn register_game(&mut self, name: String) -> RegisterResult {
+    pub fn register_game(&mut self, name: String, event: &State<Sender<String>>) -> RegisterResult {
+        // Determine if a game is already open or if a new one should be created
         let mut new_game = false;
         let mut game = match self.current_open_game.take() {
             Some(game) => {
                 info!("Starting new game.");
+                let _e = event.send(String::from("message"));
                 game
             },
             None => {
                 info!("Creating new game");
                 let game = Game::new(self);
                 new_game = true;
-                //TODO SSE-Magic "p2ready" "hello there"
                 game  
             }
         };
+        // Add player
         let player_id = self.free_player_id();
-        game.add_player(Player::new(player_id, name));
         self.player_ids.push(player_id);
+        game.add_player(Player::new(player_id, name, self.player_ids.len()));
+        // Transmit result
         if new_game {
             self.current_open_game = Some(game);
             RegisterResult { player_id, result_id: 2}
         } else {    
             self.games.push(game);
             RegisterResult { player_id, result_id: 3}
-            //TODO SSE-Magic "p2ready" "hello there"
         }
     }
 
@@ -106,7 +108,7 @@ pub struct RegisterResult {
 }
 
 enum GameState {
-    WATING,
+    WAITING,
     STARTING,
     RUNNING,
     DONE,
@@ -131,7 +133,7 @@ impl Game {
             players: Vec::new(),
             word: Word::new(&game_manager.random_word()),
             current_player: 0,
-            game_state: GameState::WATING,
+            game_state: GameState::WAITING,
             lives: MAX_LIVES,
         }
     }
@@ -140,9 +142,9 @@ impl Game {
     /// # Returns
     /// 'true' when the player was added
     /// 'false' when the player was not added because the game was already started
-    fn add_player(&mut self, player: Player) -> bool { //I know that i should probably use an result for this usecase
+    fn add_player(&mut self, player: Player) -> bool { //I know that i should probably use an result for this use case
         match self.game_state {
-            GameState::WATING => {
+            GameState::WAITING => {
                 self.players.push(player);
                 true
             },
@@ -178,12 +180,12 @@ impl Game {
     /// '3' letter was false
     /// '4' letter was false and all lives are gone
     /// '5' letter was not guessed because it is not the players turn
-    pub fn guess_letter(&mut self, userid: i32, c: char) -> i32 {
+    pub fn guess_letter(&mut self, user_id: i32, c: char, event: &State<Sender<String>>) -> i32 {
         // check if user is current player
-        if self.players[self.current_player].id == userid {
-            match self.players.len() == self.current_player {
-                true => self.current_player += 1,
-                false => self.current_player = 0,
+        if self.players[self.current_player].id == user_id {
+            match self.players.len()-1 == self.current_player {
+                true => self.current_player = 0,
+                false => self.current_player += 1,
             } 
         } else {
             return 5;
@@ -196,8 +198,8 @@ impl Game {
                 something_guessed = true;
             }
         }
-        if something_guessed && self.solved() {
-            //TODO SSE-Magic to send "p2played" 2
+        if something_guessed && !self.solved() {
+            let _x = event.send(String::from("2"));
             return 2;
         }
         // check lives
@@ -205,14 +207,14 @@ impl Game {
         if self.lives == 0 || self.solved() {
             self.game_state = GameState::DONE;
             if self.solved() {
-                //TODO SSE-Magic to send "p2played" "1"
+                let _x = event.send(String::from("1"));
                 return 1;
             } else if self.lives == 0 {
-                //TODO SEE-Magic to send "p2played" "4"
+                let _x = event.send(String::from("4"));
                 return 4;
             }
         }
-        // SSE-Magic to send "p2played" "3"
+        let _x = event.send(String::from("3"));
         3
     }
 
@@ -232,18 +234,29 @@ impl Game {
     pub fn lives(&self) -> i32 {
         self.lives
     }
+
+    /// # Returns
+    /// The current player index
+    pub fn current_player(&self) -> usize {
+        self.players[self.current_player].turn_position
+    }
 }
 
 pub struct Player {
+    /// Unique number with which the player is identified by the server
     pub id: i32,
+    /// The place in the turn order for this player
+    pub turn_position: usize,
+    /// The name of this player
     name: String,
 }
 
 impl Player {
-    pub fn new(id: i32, name: String) -> Self {
+    pub fn new(id: i32, name: String, turn_position: usize) -> Self {
         Self { 
             id, 
-            name, 
+            name,
+            turn_position,
         }
     }
 }

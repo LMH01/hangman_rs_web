@@ -427,6 +427,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "hangman_rs_web"
+version = "0.1.0"
+dependencies = [
+ "rand",
+ "rocket",
+ "serde",
+]
+
+[[package]]
 name = "hashbrown"
 version = "0.12.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -964,15 +973,6 @@ dependencies = [
  "time",
  "tokio",
  "uncased",
-]
-
-[[package]]
-name = "rocket_test"
-version = "0.1.0"
-dependencies = [
- "rand",
- "rocket",
- "serde",
 ]
 
 [[package]]
