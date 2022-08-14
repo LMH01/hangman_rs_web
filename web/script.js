@@ -1,7 +1,8 @@
 var eSource;
 var username;
 var yourturn;
-var playernumber;
+var player_number;
+var game_id;
 
 async function printWord() {
   var word = await (await
@@ -46,43 +47,27 @@ async function register() {
     alert("Please enter a username");
     return;
   }
-//  var res = await fetch("api/register", {
-//    headers: { "username": username }
-//  });
-//  var response = await res.text();
   
   var response = await postData('api/register', { username: document.getElementById("input-username").value });
   console.log(response);
-
-  //var response=()
-  if (response == "1") {
-    alert("Username already exists");
-    return;
-  }
-  //set cookie
-  var d = new Date();
-  //set cookie
-  var d = new Date();
-  //expire in 1 hours
-  d.setTime(d.getTime() + (1 * /* 24 * */ 60 * 60 * 1000));
-  var expires = "expires=" + d.toUTCString();
-
-
-  if (response == 2) {
-    playernumber = 1;
+  
+  if (response.result == 2) {
+    player_number = 0;
 
     document.getElementById("login").hidden = true;
     loggedin();
   }
-  if (response == "3") {
-    playernumber = 2;
+  if (response.result == "3") {
+    player_number = 1;
 
     document.getElementById("login").hidden = true;
     startGame();
   }
-  //set username in spans
 
+  game_id = response.game_id;
+  subscribeEvents(game_id);
 }
+
 async function image() {
   var word = await (await
     (fetch("api/lives", {
@@ -104,7 +89,7 @@ function loggedin() {
 }
 
 function startGame() {
-  console.log("You are " + playernumber);
+  console.log("You are " + player_number);
   printLives();
   printWord();
   image();
@@ -161,8 +146,8 @@ async function gameInput() {
 function myturn(number) {
 
   console.log("turn:" + number);
-  console.log("playernumber:" + playernumber);
-  if (number == playernumber.toString()) {
+  console.log("playernumber:" + player_number);
+  if (number == player_number.toString()) {
     console.log("MEEE");
     return true;
   }
@@ -193,9 +178,9 @@ async function deleteGame() {
 }
 
 // Subscribes to the event listener at /sse
-function subscribeEvents() {
+function subscribeEvents(game_id = '') {
   function connect() {
-    const events = new EventSource("/sse");
+    const events = new EventSource("/sse/" + game_id);
 
     events.addEventListener("message", (env) => {
       var data = env.data;
@@ -216,7 +201,7 @@ function subscribeEvents() {
           printWord();
           printLives();
           image();
-          if (msg.player != playernumber) {
+          if (msg.player == player_number) {
             document.getElementById("turn").innerHTML = "Your turn! Type one letter. The other Players guess was right.";
           } else
             document.getElementById("turn").innerHTML = "Well Done! Now its the other Players turn.";
@@ -225,7 +210,7 @@ function subscribeEvents() {
           printLives();
           printWord();
           image();
-          if (msg.player != playernumber) {
+          if (msg.player == player_number) {
             document.getElementById("turn").innerHTML = "Your turn! Type one letter. The other Players guess was wrong.";
           } else
             document.getElementById("turn").innerHTML = "Nice Try. Now its the other players turn.";
@@ -234,9 +219,11 @@ function subscribeEvents() {
     });
 
     events.addEventListener("open", () => {
-      console.log(`connected to event stream at /sse`);
+      console.log(`connected to event stream at /sse/` + game_id);
       retryTime = 1;
     });
+
+    //TODO Implement event listener for closing of stream
   }
 
   connect();
@@ -282,5 +269,4 @@ $(document).ready(function () {
     loggedin();
     //TODO game waiting room
   }
-  subscribeEvents();
 });

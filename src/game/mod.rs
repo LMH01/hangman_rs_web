@@ -15,6 +15,8 @@ pub struct GameManager {
     player_ids: Vec<i32>,
     /// The current open game where a new player is assigned to
     current_open_game: Option<Game>,
+    /// The currently highest numbered game id.
+    max_game_id: i32,
 }
 
 impl GameManager {
@@ -26,6 +28,7 @@ impl GameManager {
             words,
             player_ids: Vec::new(), 
             current_open_game: None,
+            max_game_id: 0,
         }
     }
 
@@ -45,12 +48,13 @@ impl GameManager {
         let mut game = match self.current_open_game.take() {
             Some(game) => {
                 info!("Starting new game.");
-                let _e = event.send(EventData::new(0, String::from("game_start")));
+                let _e = event.send(EventData::new(0, game.game_id, String::from("game_start")));
                 game
             },
             None => {
                 info!("Creating new game");
-                let game = Game::new(self);
+                let new_game_id = self.free_game_id();
+                let game = Game::new(self, new_game_id);
                 new_game = true;
                 game  
             }
@@ -60,12 +64,13 @@ impl GameManager {
         self.player_ids.push(player_id);
         game.add_player(Player::new(player_id, name, self.player_ids.len()));
         // Transmit result
+        let game_id = game.game_id;
         if new_game {
             self.current_open_game = Some(game);
-            RegisterResult { player_id, result_id: 2}
+            RegisterResult { player_id, result_id: 2, game_id: game_id}
         } else {    
             self.games.push(game);
-            RegisterResult { player_id, result_id: 3}
+            RegisterResult { player_id, result_id: 3, game_id: game_id}
         }
     }
 
@@ -135,6 +140,12 @@ impl GameManager {
             self.player_ids.remove(index);
         }
     }
+
+    /// Returns a free game id and increments the max game id value
+    fn free_game_id(&mut self) -> i32 {
+        self.max_game_id += 1;
+        self.max_game_id
+    }
 }
 
 /// Used to represent a result that occurs when [register_game](struct.GameManager.html#method.register_game) is called.
@@ -142,7 +153,9 @@ pub struct RegisterResult {
     /// The id of the new player
     pub player_id: i32,
     /// The result that should be sent back to the client
-    pub result_id: i32,    
+    pub result_id: i32,
+    /// The game id to which the user is registered
+    pub game_id: i32,
 }
 
 enum GameState {
@@ -162,17 +175,20 @@ pub struct Game {
 
     /// Stores the lives left
     lives: i32,
+    /// The id of this game. Used to determine to whom server send events should be sent
+    game_id: i32,
 }
 
 impl Game {
     /// Construct a new game with a random word
-    fn new(game_manager: &GameManager) -> Self {
+    fn new(game_manager: &GameManager, game_id: i32) -> Self {
         Self {
             players: Vec::new(),
             word: Word::new(&game_manager.random_word()),
             current_player: 0,
             game_state: GameState::WAITING,
             lives: MAX_LIVES,
+            game_id,
         }
     }
 
@@ -237,7 +253,6 @@ impl Game {
     /// '5' letter was not guessed because it is not the players turn
     pub fn guess_letter(&mut self, user_id: i32, c: char, event: &State<Sender<EventData>>) -> i32 {
         let c = c.to_uppercase().to_string().chars().next().unwrap();
-        let current_player = self.current_player;
         let next_player = match self.players.len()-1 == self.current_player {
             true => 0,
             false => self.current_player + 1,
@@ -260,7 +275,7 @@ impl Game {
             }
         }
         if something_guessed && !self.solved() {
-            let _x = event.send(EventData::new(next_player, String::from("letter_correct")));
+            let _x = event.send(EventData::new(next_player, self.game_id, String::from("letter_correct")));
             return 2;
         }
         // check lives
@@ -268,14 +283,14 @@ impl Game {
         if self.lives == 0 || self.solved() {
             self.game_state = GameState::DONE;
             if self.solved() {
-                let _x = event.send(EventData::new(0, String::from("solved")));
+                let _x = event.send(EventData::new(0, self.game_id, String::from("solved")));
                 return 1;
             } else if self.lives == 0 {
-                let _x = event.send(EventData::new(0, String::from("lost")));
+                let _x = event.send(EventData::new(0, self.game_id, String::from("lost")));
                 return 4;
             }
         }
-        let _x = event.send(EventData::new(next_player, String::from("letter_false")));
+        let _x = event.send(EventData::new(next_player, self.game_id, String::from("letter_false")));
         3
     }
 
@@ -300,6 +315,12 @@ impl Game {
     /// The current player index
     pub fn current_player(&self) -> usize {
         self.players[self.current_player].turn_position
+    }
+
+    /// # Returns
+    /// The game id of this game
+    pub fn game_id(&self) -> i32 {
+        self.game_id
     }
 }
 
