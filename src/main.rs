@@ -1,7 +1,7 @@
-use std::sync::RwLock;
+use std::sync::{RwLock, RwLockWriteGuard};
 
 use game::{GameManager, Game};
-use rocket::{http::{ContentType, CookieJar, Cookie, uri::fmt::FromUriParam}, fs::FileServer, fs::relative, serde::json::Json, State, request::FromRequest, route::Outcome, Shutdown, response::Redirect};
+use rocket::{http::{ContentType, CookieJar, Cookie, uri::fmt::FromUriParam, Status}, fs::FileServer, fs::relative, serde::json::Json, State, request::{FromRequest, self, Outcome}, Shutdown, response::Redirect};
 use rocket::response::stream::{EventStream, Event};
 use rocket::serde::{Serialize, Deserialize};
 use rocket::tokio::sync::broadcast::{channel, Sender, error::RecvError};
@@ -29,58 +29,30 @@ fn register(cookies: &CookieJar<'_>, game_manager: &State<RwLock<GameManager>>, 
 }
 
 #[post("/api/submit_char", data = "<character>")]
-fn submit_char(cookies: &CookieJar<'_>, game_manager: &State<RwLock<GameManager>>, character: Json<Character>, event: &State<Sender<EventData>>) -> (ContentType, String) {
-    let userid = match userid_from_cookies(cookies) {
-        Some(id) => id,
-        None => return (ContentType::Text, String::from("No user id was submitted")),
-    };
+fn submit_char(game_manager: &State<RwLock<GameManager>>, player_auth: PlayerAuth, character: Json<Character>, event: &State<Sender<EventData>>) -> (ContentType, String) {
     let mut game_manager = game_manager.write().unwrap();
-    let game = match game_manager.game_by_player_id(userid) {
-        Some(game) => game,
-        None => return (ContentType::Text, String::from("Invalid user id")),
-    };
-    (ContentType::Text, game.guess_letter(userid, character.character, event).to_string())
+    let game = game_by_player_auth(&mut game_manager, player_auth).unwrap();
+    (ContentType::Text, game.guess_letter(player_auth.player_id, character.character, event).to_string())
 }
 
 #[get("/api/lives")]
-fn lives(cookies: &CookieJar<'_>, game_manager: &State<RwLock<GameManager>>) -> (ContentType, String) {
-    let userid = match userid_from_cookies(cookies) {
-        Some(id) => id,
-        None => return (ContentType::Text, String::from("No user id was submitted")),
-    };
+fn lives(game_manager: &State<RwLock<GameManager>>, player_auth: PlayerAuth) -> (ContentType, String) {
     let mut game_manager = game_manager.write().unwrap();
-    let game = match game_manager.game_by_player_id(userid) {
-        Some(game) => game,
-        None => return (ContentType::Text, String::from("Invalid user id")),
-    };
+    let game = game_by_player_auth(&mut game_manager, player_auth).unwrap();
     (ContentType::Text, game.lives().to_string())
 }
 
 #[get("/api/game_string")]
-fn game_string(cookies: &CookieJar<'_>, game_manager: &State<RwLock<GameManager>>) -> (ContentType, String) {
-    let userid = match userid_from_cookies(cookies) {
-        Some(id) => id,
-        None => return (ContentType::Text, String::from("No user id was submitted")),
-    };
+fn game_string(game_manager: &State<RwLock<GameManager>>, player_auth: PlayerAuth) -> (ContentType, String) {
     let mut game_manager = game_manager.write().unwrap();
-    let game = match game_manager.game_by_player_id(userid) {
-        Some(game) => game,
-        None => return (ContentType::Text, String::from("Invalid user id")),
-    };
+    let game = game_by_player_auth(&mut game_manager, player_auth).unwrap();
     (ContentType::Text, game.game_string())
 }
 
 #[get("/api/word")]
-fn word(cookies: &CookieJar<'_>, game_manager: &State<RwLock<GameManager>>) -> (ContentType, String) {
-    let userid = match userid_from_cookies(cookies) {
-        Some(id) => id,
-        None => return (ContentType::Text, String::from("No user id was submitted")),
-    };
+fn word(game_manager: &State<RwLock<GameManager>>, player_auth: PlayerAuth) -> (ContentType, String) {
     let mut game_manager = game_manager.write().unwrap();
-    let game = match game_manager.game_by_player_id(userid) {
-        Some(game) => game,
-        None => return (ContentType::Text, String::from("Invalid user id")),
-    };
+    let game = game_by_player_auth(&mut game_manager, player_auth).unwrap();
     let ret = match game.word() {
         Some(word) => word,
         None => String::from("Unable to return word: Game has to end first!"),
@@ -89,53 +61,61 @@ fn word(cookies: &CookieJar<'_>, game_manager: &State<RwLock<GameManager>>) -> (
 }
 
 #[get("/api/delete_game")]
-fn delete_game(cookies: &CookieJar<'_>, game_manager: &State<RwLock<GameManager>>, event: &State<Sender<EventData>>) -> (ContentType, String) {
+fn delete_game(cookies: &CookieJar<'_>, game_manager: &State<RwLock<GameManager>>, player_auth: PlayerAuth, event: &State<Sender<EventData>>) -> (ContentType, String) {
     // I know that in this way the user does not have to confirm the deletion of the game.
-    let userid = match userid_from_cookies(cookies) {
-        Some(id) => id,
-        None => return (ContentType::Text, String::from("User_id not found, game has probably already been deleted")),
-    };
     let mut game_manager = game_manager.write().unwrap();
-    let game = match game_manager.game_by_player_id(userid) {
-        Some(game) => game,
-        None => return (ContentType::Text, String::from("Invalid user id")),
-    };
-    let game_id = game.game_id();
-    game_manager.delete_game(userid);
+    game_manager.delete_game(player_auth.player_id);
     // Delete cookie
     cookies.remove(Cookie::named("userid"));
     // Send event to users
-    let _x = event.send(EventData::new(0, game_id, String::from("game_deleted")));
+    let _x = event.send(EventData::new(0, player_auth.game_id, String::from("game_deleted")));
     (ContentType::Text, String::from("Game has been deleted, users have been reset"))
 }
 
 #[get("/api/guessed_letters")]
-fn guessed_letters(cookies: &CookieJar<'_>, game_manager: &State<RwLock<GameManager>>) -> (ContentType, String) {
-    let userid = match userid_from_cookies(cookies) {
-        Some(id) => id,
-        None => return (ContentType::Text, String::from("No user id was submitted")),
-    };
+fn guessed_letters(game_manager: &State<RwLock<GameManager>>, player_auth: PlayerAuth) -> (ContentType, String) {
     let mut game_manager = game_manager.write().unwrap();
-    let game = match game_manager.game_by_player_id(userid) {
-        Some(game) => game,
-        None => return (ContentType::Text, String::from("Invalid user id")),
-    };
+    let game = game_by_player_auth(&mut game_manager, player_auth).unwrap();
     (ContentType::Text, game.guessed_letters())
 }
 
 /// Returns the names of the teammates
 #[get("/api/teammates")]
-fn teammates(cookies: &CookieJar<'_>, game_manager: &State<RwLock<GameManager>>) -> (ContentType, String) {
-    let userid = match userid_from_cookies(cookies) {
-        Some(id) => id,
-        None => return (ContentType::Text, String::from("No user id was submitted")),
-    };
+fn teammates(game_manager: &State<RwLock<GameManager>>, player_auth: PlayerAuth) -> (ContentType, String) {
     let mut game_manager = game_manager.write().unwrap();
-    let game = match game_manager.game_by_player_id(userid) {
-        Some(game) => game,
-        None => return (ContentType::Text, String::from("Invalid user id")),
-    };
-    (ContentType::Text, game.teammates(userid))
+    let game = game_by_player_auth(&mut game_manager, player_auth).unwrap();
+    (ContentType::Text, game.teammates(player_auth.player_id))
+}
+
+/// Check if its the players turn
+/// # Returns
+/// `true` if it is the players turn
+/// `false` if it is not the players turn
+#[get("/api/is_players_turn")]
+fn is_players_turn(game_manager: &State<RwLock<GameManager>>, player_auth: PlayerAuth) -> (ContentType, String) {
+    let mut game_manager = game_manager.write().unwrap();
+    let game = game_by_player_auth(&mut game_manager, player_auth).unwrap();
+    (ContentType::Text, game.is_players_turn(player_auth.player_id).to_string())
+}
+
+/// Returns the game id to which the player is registered if they are registered to a game
+#[get("/api/game_id")]
+fn game_id(game_manager: &State<RwLock<GameManager>>, player_auth: PlayerAuth) -> (ContentType, String) {
+    let mut game_manager = game_manager.write().unwrap();
+    let game = game_by_player_auth(&mut game_manager, player_auth).unwrap();
+    (ContentType::Text, game.game_id().to_string()) 
+}
+
+/// # Returns
+/// The players turn position
+#[get("/api/player_turn_position")]
+fn player_turn_position(game_manager: &State<RwLock<GameManager>>, player_auth: PlayerAuth) -> (ContentType, String) {
+    let mut game_manager = game_manager.write().unwrap();
+    let game = game_by_player_auth(&mut game_manager, player_auth).unwrap();
+    match game.player_turn_position(player_auth.player_id) {
+        Some(position) => (ContentType::Text, position.to_string()),
+        None => (ContentType::Text, String::from("Invalid user id")),
+    }
 }
 
 /// Check if the submitted `user_id` is valid and the user is assigned to a game
@@ -147,7 +127,7 @@ fn teammates(cookies: &CookieJar<'_>, game_manager: &State<RwLock<GameManager>>)
 /// `lost` if the game has ended and was lost but is not yet deleted
 #[get("/api/registered")]
 fn registered(cookies: &CookieJar<'_>, game_manager: &State<RwLock<GameManager>>) -> (ContentType, String) {
-    let userid = match userid_from_cookies(cookies) {
+    let userid = match user_id_from_cookies(cookies) {
         Some(id) => id,
         None => return (ContentType::Text, String::from("false")),
     };
@@ -175,58 +155,6 @@ fn registered(cookies: &CookieJar<'_>, game_manager: &State<RwLock<GameManager>>
     };
 }
 
-/// Check if its the players turn
-/// # Returns
-/// `true` if it is the players turn
-/// `false` if it is not the players turn
-#[get("/api/is_players_turn")]
-fn is_players_turn(cookies: &CookieJar<'_>, game_manager: &State<RwLock<GameManager>>) -> (ContentType, String) {
-    let userid = match userid_from_cookies(cookies) {
-        Some(id) => id,
-        None => return (ContentType::Text, String::from("No user id was submitted")),
-    };
-    let mut game_manager = game_manager.write().unwrap();
-    let game = match game_manager.game_by_player_id(userid) {
-        Some(game) => game,
-        None => return (ContentType::Text, String::from("Invalid user id")),
-    };
-    (ContentType::Text, game.is_players_turn(userid).to_string())
-}
-
-/// Returns the game id to which the player is registered if they are registered to a game
-#[get("/api/game_id")]
-fn game_id(cookies: &CookieJar<'_>, game_manager: &State<RwLock<GameManager>>) -> (ContentType, String) {
-    let userid = match userid_from_cookies(cookies) {
-        Some(id) => id,
-        None => return (ContentType::Text, String::from("No user id was submitted")),
-    };
-    let mut game_manager = game_manager.write().unwrap();
-    let game = match game_manager.game_by_player_id(userid) {
-        Some(game) => game,
-        None => return (ContentType::Text, String::from("Invalid user id")),
-    };
-    (ContentType::Text, game.game_id().to_string()) 
-}
-
-/// # Returns
-/// The players turn position
-#[get("/api/player_turn_position")]
-fn player_turn_position(cookies: &CookieJar<'_>, game_manager: &State<RwLock<GameManager>>) -> (ContentType, String) {
-    let userid = match userid_from_cookies(cookies) {
-        Some(id) => id,
-        None => return (ContentType::Text, String::from("No user id was submitted")),
-    };
-    let mut game_manager = game_manager.write().unwrap();
-    let game = match game_manager.game_by_player_id(userid) {
-        Some(game) => game,
-        None => return (ContentType::Text, String::from("Invalid user id")),
-    };
-    match game.player_turn_position(userid) {
-        Some(position) => (ContentType::Text, position.to_string()),
-        None => (ContentType::Text, String::from("Invalid user id")),
-    }
-}
-
 #[get("/sse/<game_id>")]// TODO Umbauen, sodass es zu /sse/<game_id>/<player_number> wird, sodass jeder spieler nur noch events bekommt, die für ihn interessant sind. Außerdem: Die Fehler fixen
 async fn events(event: &State<Sender<EventData>>, mut end: Shutdown, game_id: i32) -> EventStream![] {
     let mut rx = event.subscribe();
@@ -251,7 +179,50 @@ async fn events(event: &State<Sender<EventData>>, mut end: Shutdown, game_id: i3
     }
 }
 
-// TODO use request guards to verify user_id as http header -> replaces the current cookie solution: https://api.rocket.rs/v0.4/rocket/request/struct.State.html (within request guards section)
+fn game_by_player_auth<'a>(game_manager: &'a mut RwLockWriteGuard<GameManager>, player_auth: PlayerAuth) -> Option<&'a mut Game> {
+    match game_manager.game_by_player_id(player_auth.player_id) {
+        Some(game) => Some(game),
+        None => None,
+    }
+}
+
+/// Errors that can occur when the player tries to authenticate a request
+#[derive(Debug)]
+pub enum PlayerAuthError {
+    /// The transmitted id-cookie is missing
+    Missing,
+    /// The transmitted id-cookie is invalid
+    Invalid,
+}
+
+/// Symbolizes the authentication of a player.
+/// 
+/// A authenticated player is assigned to a game.
+#[derive(Clone, Copy)]
+pub struct PlayerAuth {
+    /// The unique id that identifies this player
+    player_id: i32,
+    /// The game in which the player plays
+    game_id: i32,
+}
+
+#[rocket::async_trait]
+impl<'r> FromRequest<'r> for PlayerAuth {
+    type Error = PlayerAuthError;
+
+    async fn from_request(request: &'r rocket::Request<'_>) ->  Outcome<Self, Self::Error> {
+        let userid = match user_id_from_cookies(request.cookies()) {
+            Some(id) => id,
+            None => return Outcome::Failure((Status::Forbidden, PlayerAuthError::Missing)),
+        };
+        let mut game_manager = request.rocket().state::<RwLock<GameManager>>().unwrap().write().unwrap();
+        let game = match game_manager.game_by_player_id(userid) {
+            Some(game) => game,
+            None => return Outcome::Failure((Status::Forbidden, PlayerAuthError::Invalid)),
+        };
+        Outcome::Success(PlayerAuth { player_id: userid, game_id: game.game_id()})
+    }
+}
 
 /// Used to transmit data to the client with server side events
 #[derive(Debug, Clone, FromForm, Serialize, Deserialize)]
@@ -306,9 +277,21 @@ struct Character {
 /// # Returns
 /// 'Some(i32)' when the id was found
 /// 'None' when the user id was not found or the cookie was not set
-fn userid_from_cookies(cookies: &CookieJar<'_>) -> Option<i32> {
+fn user_id_from_cookies(cookies: &CookieJar<'_>) -> Option<i32> {
     match cookies.get("userid") {
         Some(cookie) => Some(cookie.value().parse().unwrap()),
         None => None,
     }
 }
+
+// TODO:  
+//  1. Authentifikation umbauen, (um http headers zu benutzen (bin ich mit mittlerweile nicht mehr so sicher, ich glaube, dass cookies keine schlechte Idee sind))
+
+//  2. SSE handling umbauen, dass jeder nur noch das bekommt, was für ihn relevant ist
+//  3. Code aufräumen, nicht benötigtes weg löschen, variablen umbenennen (vor allem in JavaScript Teil)
+//  3.1 Debug prints aufräumen (sowohl server, als auch client)
+//  3.2 Alles, was user beinhaltet in player umbenennen
+//  4. Code dokumentieren, vor allem die Funktionen in der Main, da dokumentieren, was genau zurück kommt 
+//    (ggf. kann ich darauf ja dann in der Readme verweisen und das gebuildete rust doc dazu mit in das Repo packen)
+//  4.1 cargo clippy ausführen und Warnungen beheben
+//  5. README überarbeiten und die REST Pfade richtig dokumentieren
