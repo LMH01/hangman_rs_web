@@ -285,6 +285,7 @@ impl Game {
         if self.lives == 0 || self.solved() {
             self.game_state = GameState::DONE;
             if self.solved() {
+                self.lives += 1; //Increment lives to get the amount of lives that where left when the game was won
                 let _x = event.send(EventData::new(0, self.game_id, String::from("solved")));
                 return 1;
             } else if self.lives == 0 {

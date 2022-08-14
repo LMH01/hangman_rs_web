@@ -25,7 +25,7 @@ async function printLives() {
     }
     ))).text();
   lives = Number(word);
-  document.getElementById("lives").innerHTML = "lives:" + word;
+  document.getElementById("lives").innerHTML = "lives: " + word;
 }
 
 function getCookie(name) {
@@ -153,16 +153,17 @@ function myturn(number) {
     return false;
 }
 
-async function gameend(tf) {
-  image();
+async function gameend(won) {
   printWord();
   document.getElementById("game").hidden = true;
   document.getElementById("gameend").hidden = false;
   document.getElementById("wonlost").innerHTML = "Game Over";
-  if (tf)
+  if (won) {
     document.getElementById("wonlost").innerHTML = "You won";
-  else
+  } else {
+    image();
     document.getElementById("wonlost").innerHTML = "You lost";
+  }
   
   var response = await fetchData('api/word');
   console.log("Response was: " + response);
