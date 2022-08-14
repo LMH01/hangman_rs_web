@@ -25,7 +25,7 @@ async function printLives() {
     }
     ))).text();
   lives = Number(word);
-  document.getElementById("lives").innerHTML = "lives: " + word;
+  document.getElementById("lives").innerHTML = 'lives: ' + word;
 }
 
 function getCookie(name) {
@@ -82,6 +82,11 @@ async function image() {
   document.getElementById("image").src = "pictures/" + Math.abs(10 - lives) + ".jpg"
 }
 
+async function update_guessed_letters() {
+  var response = await fetchData('api/guessed_letters');
+  document.getElementById("guessed_letters").innerHTML = 'Guessed letters: ' + response;
+}
+
 function loggedin() {
   document.getElementById("login").hidden = true;
   document.getElementById("waitingroom").hidden = false;
@@ -135,9 +140,9 @@ async function gameInput() {
     case 5:
       alert("Not your Turn. Please wait");
       break;
-
   }
 
+  update_guessed_letters();
   document.getElementById("input-letter").value = "";
 }
 
@@ -203,6 +208,7 @@ function subscribeEvents(game_id = '') {
           printWord();
           printLives();
           image();
+          update_guessed_letters();
           if (msg.player == player_number) {
             document.getElementById("turn").innerHTML = "Your turn! Type one letter. The other Players guess was right.";
           } else
@@ -212,6 +218,7 @@ function subscribeEvents(game_id = '') {
           printLives();
           printWord();
           image();
+          update_guessed_letters();
           if (msg.player == player_number) {
             document.getElementById("turn").innerHTML = "Your turn! Type one letter. The other Players guess was wrong.";
           } else

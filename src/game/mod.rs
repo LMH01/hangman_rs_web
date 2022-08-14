@@ -173,22 +173,29 @@ enum GameState {
 }
 
 pub struct Game {
+    /// The players that are assigned to the game
     players: Vec<Player>,
+    /// The word that should be guessed
     word: Word,
+    /// The index of the current player
     current_player: usize,
-    
     /// Stores the state of the game. When the game is started no more players can be added
     game_state: GameState,
-
     /// Stores the lives left
     lives: i32,
     /// The id of this game. Used to determine to whom server send events should be sent
     game_id: i32,
+    /// All letters that where guessed
+    guessed_letters: Vec<Letter>,
 }
 
 impl Game {
     /// Construct a new game with a random word
     fn new(game_manager: &GameManager, game_id: i32) -> Self {
+        let mut guessed_letters = Vec::new();
+        for c in b'a'..=b'z' {
+            guessed_letters.push(Letter::new((c as char).to_uppercase().to_string().chars().next().unwrap()));
+        }
         Self {
             players: Vec::new(),
             word: Word::new(&game_manager.random_word()),
@@ -196,6 +203,7 @@ impl Game {
             game_state: GameState::WAITING,
             lives: MAX_LIVES,
             game_id,
+            guessed_letters,
         }
     }
 
@@ -268,6 +276,8 @@ impl Game {
         } else {
             return 5;
         }
+        // Update guessed letters vector
+        self.add_letter_guessed(c); 
         // guess letters
         let mut something_guessed = false;
         for letter in &mut self.word.letters {
@@ -295,6 +305,34 @@ impl Game {
         }
         let _x = event.send(EventData::new(next_player, self.game_id, String::from("letter_false")));
         3
+    }
+
+    /// Adds the input letter to the list of guessed characters
+    fn add_letter_guessed(&mut self, c: char) {
+        for letter in &mut self.guessed_letters {
+            if letter.character == c {
+                letter.guessed = true;
+            }
+        }
+    }
+
+    /// Returns a string containing all guessed letters.
+    /// 
+    /// Output may be something like this: `A B D F`
+    pub fn guessed_letters(&self) -> String {
+        let mut s = String::new();
+        let mut first_letter = true;
+        for letter in &self.guessed_letters {
+            if first_letter {
+                first_letter = false;
+            } else {
+                s.push(' ');
+            }
+            if letter.guessed {
+                s.push(letter.character);
+            }
+        }
+        s
     }
 
     /// # Returns
