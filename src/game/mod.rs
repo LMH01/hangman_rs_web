@@ -77,7 +77,16 @@ impl GameManager {
     /// Reads the words file and returns a random word
     fn random_word(&self) -> String {
         let number = rand::thread_rng().gen_range(0..self.words.len());
-        String::from(self.words[number].clone())
+        let mut transformed_word = String::new();
+        for c in self.words[number].clone().chars() {
+            match c {
+                'Ä' => transformed_word.push_str("AE"),
+                'Ö' => transformed_word.push_str("OE"),
+                'Ü' => transformed_word.push_str("UE"),
+                _ => transformed_word.push(c),
+            }
+        }
+        transformed_word
     }
 
     /// Returns a free player id
@@ -160,8 +169,6 @@ pub struct RegisterResult {
 
 enum GameState {
     WAITING,
-    STARTING,
-    RUNNING,
     DONE,
 }
 
@@ -204,11 +211,6 @@ impl Game {
             },
             _ => false,
         }
-    }
-
-    /// Starts the game
-    fn start(&mut self) {
-        self.game_state = GameState::STARTING;
     }
 
     /// Returns the current word in the following formatting:
