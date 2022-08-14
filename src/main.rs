@@ -15,7 +15,7 @@ mod game;
 fn rocket() -> _ {
     rocket::build()
         .mount("/", FileServer::from(relative!("web")))
-        .mount("/", routes![events, register, submit_char, lives, game_string, player_number, word, guessed_letters, delete_game])
+        .mount("/", routes![events, register, submit_char, lives, game_string, player_number, word, guessed_letters, teammates, delete_game])
         .manage(RwLock::new(GameManager::new()))
         .manage(channel::<EventData>(1024).0)
 }
@@ -135,6 +135,21 @@ fn guessed_letters(cookies: &CookieJar<'_>, game_manager: &State<RwLock<GameMana
         None => return (ContentType::Text, String::from("Invalid user id")),
     };
     (ContentType::Text, game.guessed_letters())
+}
+
+/// Returns the names of the teammates
+#[get("/api/teammates")]
+fn teammates(cookies: &CookieJar<'_>, game_manager: &State<RwLock<GameManager>>) -> (ContentType, String) {
+    let userid = match userid_from_cookies(cookies) {
+        Some(id) => id,
+        None => return (ContentType::Text, String::from("No user id was submitted")),
+    };
+    let mut game_manager = game_manager.write().unwrap();
+    let game = match game_manager.game_by_player_id(userid) {
+        Some(game) => game,
+        None => return (ContentType::Text, String::from("Invalid user id")),
+    };
+    (ContentType::Text, game.teammates(userid))
 }
 
 #[get("/sse/<game_id>")]// TODO Umbauen, sodass es zu /sse/<game_id>/<player_number> wird, sodass jeder spieler nur noch events bekommt, die für ihn interessant sind. Außerdem: Die Fehler fixen

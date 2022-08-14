@@ -363,6 +363,23 @@ impl Game {
     pub fn game_id(&self) -> i32 {
         self.game_id
     }
+
+    /// Returns the names of the teammates of the player with the id
+    pub fn teammates(&self, player_id: i32) -> String {
+        let mut s = String::new();
+        let mut first_player = true;
+        for player in &self.players {
+            if player.id != player_id {
+                if first_player {
+                    first_player = false;
+                } else {
+                    s.push_str(", ");
+                }
+                s.push_str(&player.name);
+            }
+        }
+        s
+    }
 }
 
 #[derive(PartialEq)]

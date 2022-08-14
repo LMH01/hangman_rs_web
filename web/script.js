@@ -62,6 +62,7 @@ async function register() {
 
     document.getElementById("login").hidden = true;
     document.getElementById("turn").innerHTML = "Game started, its the other Players turn.";
+    fetch_teammates();
     startGame();
   }
 
@@ -85,6 +86,11 @@ async function image() {
 async function update_guessed_letters() {
   var response = await fetchData('api/guessed_letters');
   document.getElementById("guessed_letters").innerHTML = 'Guessed letters: ' + response;
+}
+
+async function fetch_teammates() {
+  var response = await fetchData('api/teammates');
+  document.getElementById("teammates").innerHTML = 'Teammate: ' + response;
 }
 
 function loggedin() {
@@ -193,8 +199,9 @@ function subscribeEvents(game_id = '') {
       var msg = JSON.parse(data);
       switch (msg.data) {
         case "game_start": 
-          startGame();
           document.getElementById("turn").innerHTML = "Game started, its your turn.";
+          fetch_teammates();
+          startGame();
           break;
         case "solved":    
           console.info("Game has ended, closing event stream for /sse/" + game_id);
