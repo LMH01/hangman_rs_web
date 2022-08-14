@@ -15,7 +15,7 @@ mod game;
 fn rocket() -> _ {
     rocket::build()
         .mount("/", FileServer::from(relative!("web")))
-        .mount("/", routes![events, register, submit_char, lives, game_string, player_number, word, guessed_letters, teammates, delete_game])
+        .mount("/", routes![events, register, registered, submit_char, lives, game_string, player_turn_position, word, guessed_letters, teammates, is_players_turn, game_id, delete_game])
         .manage(RwLock::new(GameManager::new()))
         .manage(channel::<EventData>(1024).0)
 }
@@ -88,20 +88,6 @@ fn word(cookies: &CookieJar<'_>, game_manager: &State<RwLock<GameManager>>) -> (
     (ContentType::Text, ret)
 }
 
-#[get("/api/player_number")]
-fn player_number(cookies: &CookieJar<'_>, game_manager: &State<RwLock<GameManager>>) -> (ContentType, String) {
-    let userid = match userid_from_cookies(cookies) {
-        Some(id) => id,
-        None => return (ContentType::Text, String::from("No user id was submitted")),
-    };
-    let mut game_manager = game_manager.write().unwrap();
-    let game = match game_manager.game_by_player_id(userid) {
-        Some(game) => game,
-        None => return (ContentType::Text, String::from("Invalid user id")),
-    };
-    (ContentType::Text, game.current_player().to_string())
-}
-
 #[get("/api/delete_game")]
 fn delete_game(cookies: &CookieJar<'_>, game_manager: &State<RwLock<GameManager>>, event: &State<Sender<EventData>>) -> (ContentType, String) {
     // I know that in this way the user does not have to confirm the deletion of the game.
@@ -150,6 +136,95 @@ fn teammates(cookies: &CookieJar<'_>, game_manager: &State<RwLock<GameManager>>)
         None => return (ContentType::Text, String::from("Invalid user id")),
     };
     (ContentType::Text, game.teammates(userid))
+}
+
+/// Check if the submitted `user_id` is valid and the user is assigned to a game
+/// # Return
+/// 'false' `user_id` is invalid
+/// 'registered' user exists and is waiting for a game to start
+/// 'playing' user exists and is playing in a game
+/// 'won' if the game has ended and was won but is not yet deleted
+/// `lost` if the game has ended and was lost but is not yet deleted
+#[get("/api/registered")]
+fn registered(cookies: &CookieJar<'_>, game_manager: &State<RwLock<GameManager>>) -> (ContentType, String) {
+    let userid = match userid_from_cookies(cookies) {
+        Some(id) => id,
+        None => return (ContentType::Text, String::from("false")),
+    };
+    let mut game_manager = game_manager.write().unwrap();
+    match game_manager.game_by_player_id(userid) {
+        Some(game) => {
+            match game.completed() {
+                Some(win) => {
+                    if win {
+                        return (ContentType::Text, String::from("win"));
+                    } else {
+                        return (ContentType::Text, String::from("lost"));
+                    }
+                },
+                None => return (ContentType::Text, String::from("playing"))
+            }
+        },
+        None => {
+            if game_manager.id_taken(userid) {
+                return (ContentType::Text, String::from("registered"));
+            } else {
+                return (ContentType::Text, String::from("false"))
+            }
+        },
+    };
+}
+
+/// Check if its the players turn
+/// # Returns
+/// `true` if it is the players turn
+/// `false` if it is not the players turn
+#[get("/api/is_players_turn")]
+fn is_players_turn(cookies: &CookieJar<'_>, game_manager: &State<RwLock<GameManager>>) -> (ContentType, String) {
+    let userid = match userid_from_cookies(cookies) {
+        Some(id) => id,
+        None => return (ContentType::Text, String::from("No user id was submitted")),
+    };
+    let mut game_manager = game_manager.write().unwrap();
+    let game = match game_manager.game_by_player_id(userid) {
+        Some(game) => game,
+        None => return (ContentType::Text, String::from("Invalid user id")),
+    };
+    (ContentType::Text, game.is_players_turn(userid).to_string())
+}
+
+/// Returns the game id to which the player is registered if they are registered to a game
+#[get("/api/game_id")]
+fn game_id(cookies: &CookieJar<'_>, game_manager: &State<RwLock<GameManager>>) -> (ContentType, String) {
+    let userid = match userid_from_cookies(cookies) {
+        Some(id) => id,
+        None => return (ContentType::Text, String::from("No user id was submitted")),
+    };
+    let mut game_manager = game_manager.write().unwrap();
+    let game = match game_manager.game_by_player_id(userid) {
+        Some(game) => game,
+        None => return (ContentType::Text, String::from("Invalid user id")),
+    };
+    (ContentType::Text, game.game_id().to_string()) 
+}
+
+/// # Returns
+/// The players turn position
+#[get("/api/player_turn_position")]
+fn player_turn_position(cookies: &CookieJar<'_>, game_manager: &State<RwLock<GameManager>>) -> (ContentType, String) {
+    let userid = match userid_from_cookies(cookies) {
+        Some(id) => id,
+        None => return (ContentType::Text, String::from("No user id was submitted")),
+    };
+    let mut game_manager = game_manager.write().unwrap();
+    let game = match game_manager.game_by_player_id(userid) {
+        Some(game) => game,
+        None => return (ContentType::Text, String::from("Invalid user id")),
+    };
+    match game.player_turn_position(userid) {
+        Some(position) => (ContentType::Text, position.to_string()),
+        None => (ContentType::Text, String::from("Invalid user id")),
+    }
 }
 
 #[get("/sse/<game_id>")]// TODO Umbauen, sodass es zu /sse/<game_id>/<player_number> wird, sodass jeder spieler nur noch events bekommt, die für ihn interessant sind. Außerdem: Die Fehler fixen

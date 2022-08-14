@@ -1,44 +1,17 @@
 var eSource;
 var username;
-var yourturn;
-var player_number;
-var game_id;
+var yourTurn;
+var playerTurnPosition;
+var gameId;
 
-async function printWord() {
-  var word = await (await
-    (fetch("api/game_string", {
-      headers: {
-        "username": username
-      }
-    }
-    ))).text();
-  document.getElementById("gameword").innerHTML = word;
+async function updateWord() {
+  var response = await fetchData('api/game_string');
+  document.getElementById("gameword").innerHTML = response;
 }
 
-async function printLives() {
-
-  var word = await (await
-    (fetch("api/lives", {
-      headers: {
-        "username": username
-      }
-    }
-    ))).text();
-  lives = Number(word);
-  document.getElementById("lives").innerHTML = 'lives: ' + word;
-}
-
-function getCookie(name) {
-  const value = `; ${document.cookie}`;
-  const parts = value.split(`; ${name}=`);
-  if (parts.length === 2) return parts.pop().split(';').shift();
-}
-
-function sse(path) {
-  const eventSource = new eventSource("localhost/api/" + path);
-  eventSource.addEventListener();
-  msg => { return msg; }
-
+async function updateLives() {
+  var response = await fetchData('api/lives');
+  document.getElementById("lives").innerHTML = 'lives: ' + response;
 }
 
 async function register() {
@@ -52,57 +25,50 @@ async function register() {
   console.log(response);
   
   if (response.result == 2) {
-    player_number = 0;
+    playerTurnPosition = 0;
 
     document.getElementById("login").hidden = true;
-    loggedin();
+    loggedIn();
   }
   if (response.result == "3") {
-    player_number = 1;
+    playerTurnPosition = 1;
 
     document.getElementById("login").hidden = true;
     document.getElementById("turn").innerHTML = "Game started, its the other Players turn.";
-    fetch_teammates();
+    fetchTeammates();
     startGame();
   }
 
-  game_id = response.game_id;
-  subscribeEvents(game_id);
+  gameId = response.game_id;
+  subscribeEvents(gameId);
 }
 
-async function image() {
-  var word = await (await
-    (fetch("api/lives", {
-      headers: {
-        "username": username
-      }
-    }
-    ))).text();
-  lives = Number(word);
+async function updateImage() {
+  var response = await fetchData('api/lives');
   document.getElementById("image").hidden = false;
-  document.getElementById("image").src = "pictures/" + Math.abs(10 - lives) + ".jpg"
+  document.getElementById("image").src = "pictures/" + Math.abs(10 - Number(response)) + ".jpg"
 }
 
-async function update_guessed_letters() {
+async function updateGuessedLetters() {
   var response = await fetchData('api/guessed_letters');
   document.getElementById("guessed_letters").innerHTML = 'Guessed letters: ' + response;
 }
 
-async function fetch_teammates() {
+async function fetchTeammates() {
   var response = await fetchData('api/teammates');
   document.getElementById("teammates").innerHTML = 'Teammate: ' + response;
 }
 
-function loggedin() {
+function loggedIn() {
   document.getElementById("login").hidden = true;
   document.getElementById("waitingroom").hidden = false;
 }
 
 function startGame() {
-  console.log("You are " + player_number);
-  printLives();
-  printWord();
-  image();
+  console.log("You are " + playerTurnPosition);
+  updateLives();
+  updateWord();
+  updateImage();
   document.getElementById("waitingroom").hidden = true;
   document.getElementById("game").hidden = false;
 }
@@ -129,34 +95,34 @@ async function gameInput() {
   var response = await postData('api/submit_char', { character: document.getElementById("input-letter").value[0] });
   console.log(response)
   switch (response) {
-    case 1: image();
-      gameend(true);
+    case 1: updateImage();
+      gameEnd(true);
       break;
-    case 2: image();
-      yourturn = false;
-      printWord();
+    case 2: updateImage();
+      yourTurn = false;
+      updateWord();
       break;
-    case 3: image();
-      yourturn = false;
-      printLives();
+    case 3: updateImage();
+      yourTurn = false;
+      updateLives();
       break;
-    case 4: image();
-      gameend(false);
+    case 4: updateImage();
+      gameEnd(false);
       break;
     case 5:
       alert("Not your Turn. Please wait");
       break;
   }
 
-  update_guessed_letters();
+  updateGuessedLetters();
   document.getElementById("input-letter").value = "";
 }
 
 function myturn(number) {
 
   console.log("turn:" + number);
-  console.log("playernumber:" + player_number);
-  if (number == player_number.toString()) {
+  console.log("playernumber:" + playerTurnPosition);
+  if (number == playerTurnPosition.toString()) {
     console.log("MEEE");
     return true;
   }
@@ -164,15 +130,15 @@ function myturn(number) {
     return false;
 }
 
-async function gameend(won) {
-  printWord();
+async function gameEnd(won) {
+  updateWord();
   document.getElementById("game").hidden = true;
   document.getElementById("gameend").hidden = false;
   document.getElementById("wonlost").innerHTML = "Game Over";
   if (won) {
     document.getElementById("wonlost").innerHTML = "You won";
   } else {
-    image();
+    updateImage();
     document.getElementById("wonlost").innerHTML = "You lost";
   }
   
@@ -187,10 +153,29 @@ async function deleteGame() {
   location.reload();
 }
 
+// Reloads required elements when the player reloads the page and a game is running
+async function reconnect() {
+  fetchTeammates();
+  updateGuessedLetters();
+  var isPlayersTurn = await fetchData('api/is_players_turn');
+  switch (isPlayersTurn) {
+    case 'true':
+      document.getElementById("turn").innerHTML = "Its your turn.";
+      break;
+    case 'false':
+      document.getElementById("turn").innerHTML = "Its the other players turn.";
+      break;
+  }
+  gameId = await fetchData('api/game_id');
+  playerTurnPosition = await fetchData('api/player_turn_position');
+  startGame();
+  subscribeEvents(gameId);
+}
+
 // Subscribes to the event listener at /sse
-function subscribeEvents(game_id = '') {
+function subscribeEvents(gameId = '') {
   function connect() {
-    const events = new EventSource("/sse/" + game_id);
+    const events = new EventSource("/sse/" + gameId);
 
     events.addEventListener("message", (env) => {
       var data = env.data;
@@ -200,47 +185,47 @@ function subscribeEvents(game_id = '') {
       switch (msg.data) {
         case "game_start": 
           document.getElementById("turn").innerHTML = "Game started, its your turn.";
-          fetch_teammates();
+          fetchTeammates();
           startGame();
           break;
         case "solved":    
-          console.info("Game has ended, closing event stream for /sse/" + game_id);
+          console.info("Game has ended, closing event stream for /sse/" + gameId);
           events.close();
-          gameend(true);
+          gameEnd(true);
           break;
         case "lost":
-          gameend(false);
+          gameEnd(false);
           break;
         case "letter_correct":
-          printWord();
-          printLives();
-          image();
-          update_guessed_letters();
-          if (msg.player == player_number) {
+          updateWord();
+          updateLives();
+          updateImage();
+          updateGuessedLetters();
+          if (msg.player == playerTurnPosition) {
             document.getElementById("turn").innerHTML = "Your turn! Type one letter. The other Players guess was right.";
-          } else
-            document.getElementById("turn").innerHTML = "Well Done! Now its the other Players turn.";
+          } else          startGame();
+            document.getElementById("turn").innerHTML = "Well done, that was correct! Now its the other Players turn.";
           break;
         case "letter_false":
-          printLives();
-          printWord();
-          image();
-          update_guessed_letters();
-          if (msg.player == player_number) {
+          updateLives();
+          updateWord();
+          updateImage();
+          updateGuessedLetters();
+          if (msg.player == playerTurnPosition) {
             document.getElementById("turn").innerHTML = "Your turn! Type one letter. The other Players guess was wrong.";
           } else
-            document.getElementById("turn").innerHTML = "Nice Try. Now its the other players turn.";
+            document.getElementById("turn").innerHTML = "Nice try, but that was wrong. Now its the other players turn.";
           break;
       }
     });
 
     events.addEventListener("open", () => {
-      console.log(`connected to event stream at /sse/` + game_id);
+      console.log(`connected to event stream at /sse/` + gameId);
     });
 
     events.addEventListener("error", () => {
-      console.error("connection to event stream at /sse/" + game_id + " lost");
-      console.info("Closing event stream for /sse/" + game_id);
+      console.error("connection to event stream at /sse/" + gameId + " lost");
+      console.info("Closing event stream for /sse/" + gameId);
       events.close();
     });
   }
@@ -274,18 +259,39 @@ async function fetchData(url = '') {
   return word;
 }
 
+function getCookie(name) {
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop().split(';').shift();
+}
+
 //MAIN
-$(document).ready(function () {
+$(document).ready(async function () {
   //Login Logic
   //get username from cookie
-  let username = getCookie("username");
-  if (username == "" || username == null)
+  let username = getCookie("userid");
+  console.log(login);
+  if (username == "" || username == null) {
     document.getElementById("login").hidden = false;
-  else if (!checkLogin(username)) {
-    //TODO handle wrong login
-  }
-  else {
-    loggedin();
-    //TODO game waiting room
+  } else {
+    var result = await fetchData('api/registered');
+    console.log('Checking registration status: ' + result);
+    switch (result) {
+        case 'false':
+          document.getElementById("login").hidden = false;
+          break;
+        case 'registered':
+          loggedIn();
+          break;
+        case 'playing':
+          reconnect();  
+          break;
+        case 'win':
+          gameEnd(true);
+          break;
+        case 'lost':
+          gameEnd(false);
+          break;
+    }
   }
 });

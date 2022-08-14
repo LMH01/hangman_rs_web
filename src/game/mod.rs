@@ -62,7 +62,7 @@ impl GameManager {
         // Add player
         let player_id = self.free_player_id();
         self.player_ids.push(player_id);
-        game.add_player(Player::new(player_id, name, self.player_ids.len()));
+        game.add_player(Player::new(player_id, name, self.player_ids.len()-1));
         // Transmit result
         let game_id = game.game_id;
         if new_game {
@@ -155,6 +155,18 @@ impl GameManager {
         self.max_game_id += 1;
         self.max_game_id
     }
+
+    /// Checks if the `id` has been assigned to a player
+    /// # Returns
+    /// `true` id is assigned to user
+    /// `false` id is free
+    pub fn id_taken(&self, id: i32) -> bool {
+        if self.player_ids.contains(&id) {
+            true 
+        } else {
+            false
+        }
+    }
 }
 
 /// Used to represent a result that occurs when [register_game](struct.GameManager.html#method.register_game) is called.
@@ -168,8 +180,10 @@ pub struct RegisterResult {
 }
 
 enum GameState {
-    WAITING,
-    DONE,
+    /// Symbolizes that the game has not yet started
+    Waiting,
+    /// Symbolizes that this game is over. Boolean value determines if the game was won (`true`) or lost (`false`).
+    Done(bool),// Add state to done that signifies if the game was won or lost: DONE(boolean)
 }
 
 pub struct Game {
@@ -200,7 +214,7 @@ impl Game {
             players: Vec::new(),
             word: Word::new(&game_manager.random_word()),
             current_player: 0,
-            game_state: GameState::WAITING,
+            game_state: GameState::Waiting,
             lives: MAX_LIVES,
             game_id,
             guessed_letters,
@@ -213,7 +227,7 @@ impl Game {
     /// 'false' when the player was not added because the game was already started
     fn add_player(&mut self, player: Player) -> bool { //I know that i should probably use an result for this use case
         match self.game_state {
-            GameState::WAITING => {
+            GameState::Waiting => {
                 self.players.push(player);
                 true
             },
@@ -249,7 +263,7 @@ impl Game {
     /// 'None' when the word is not yet guessed
     pub fn word(&self) ->  Option<String> {
         match self.game_state {
-            GameState::DONE => Some(self.word.get()),
+            GameState::Done(_win) => Some(self.word.get()),
             _ => None,
         }
     }
@@ -293,13 +307,14 @@ impl Game {
         // check lives
         self.lives -= 1;
         if self.lives == 0 || self.solved() {
-            self.game_state = GameState::DONE;
             if self.solved() {
                 self.lives += 1; //Increment lives to get the amount of lives that where left when the game was won
                 let _x = event.send(EventData::new(0, self.game_id, String::from("solved")));
+                self.game_state = GameState::Done(true);
                 return 1;
             } else if self.lives == 0 {
                 let _x = event.send(EventData::new(0, self.game_id, String::from("lost")));
+                self.game_state = GameState::Done(false);
                 return 4;
             }
         }
@@ -347,6 +362,18 @@ impl Game {
     }
 
     /// # Returns
+    /// 'Some(Player)' when the player was found
+    /// 'None' when the player with the id does not exist
+    fn player_by_id(&self, id: i32) -> Option<&Player> {
+        for player in &self.players {
+            if player.id == id {
+                return Some(player);
+            }
+        }
+        None
+    }
+
+    /// # Returns
     /// How many lives are left
     pub fn lives(&self) -> i32 {
         self.lives
@@ -379,6 +406,34 @@ impl Game {
             }
         }
         s
+    }
+
+    /// Checks if it is the players turn
+    pub fn is_players_turn(&self, player_id: i32) -> bool {
+        self.players[self.current_player].id == player_id
+    }
+
+    /// # Return
+    /// `Some(usize)` the position of the player in the turn order
+    /// `None` the player with the id was not found
+    pub fn player_turn_position(&self, player_id: i32) -> Option<usize> {
+        match self.player_by_id(player_id) {
+            Some(player) => return Some(player.turn_position),
+            None => None,
+        }
+    }
+
+    /// Checks if the game has been completed
+    /// # Returns
+    /// 'None' when the game is still running
+    /// 'Some(bool)' when the game has been completed. Boolean indicates if the game was won (`true`) or lost (`false`).
+    /// `true` when the game has been completed
+    /// `false` when the game is still running
+    pub fn completed(&self) -> Option<bool> {
+        match self.game_state {
+            GameState::Done(win) => Some(win),
+            _ => None,
+        }
     }
 }
 
