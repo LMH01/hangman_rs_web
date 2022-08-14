@@ -191,7 +191,9 @@ function subscribeEvents(game_id = '') {
         case "game_start": 
           startGame();
           break;
-        case "solved":
+        case "solved":    
+          console.info("Game has ended, closing event stream for /sse/" + game_id);
+          events.close();
           gameend(true);
           break;
         case "lost":
@@ -220,10 +222,13 @@ function subscribeEvents(game_id = '') {
 
     events.addEventListener("open", () => {
       console.log(`connected to event stream at /sse/` + game_id);
-      retryTime = 1;
     });
 
-    //TODO Implement event listener for closing of stream
+    events.addEventListener("error", () => {
+      console.error("connection to event stream at /sse/" + game_id + " lost");
+      console.info("Closing event stream for /sse/" + game_id);
+      events.close();
+    });
   }
 
   connect();
