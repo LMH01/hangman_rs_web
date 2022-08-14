@@ -61,6 +61,7 @@ async function register() {
     player_number = 1;
 
     document.getElementById("login").hidden = true;
+    document.getElementById("turn").innerHTML = "Game started, its the other Players turn.";
     startGame();
   }
 
@@ -80,12 +81,10 @@ async function image() {
   document.getElementById("image").hidden = false;
   document.getElementById("image").src = "pictures/" + Math.abs(10 - lives) + ".jpg"
 }
-function loggedin() {
 
+function loggedin() {
   document.getElementById("login").hidden = true;
   document.getElementById("waitingroom").hidden = false;
-  console.log("logged in");
-  //new EventSource('/sse').addEventListener("message", msg => { console.log(msg.data); startGame() });
 }
 
 function startGame() {
@@ -95,7 +94,6 @@ function startGame() {
   image();
   document.getElementById("waitingroom").hidden = true;
   document.getElementById("game").hidden = false;
-  //new EventSource('/sse').addEventListener("message", msg => { console.log(msg.data); p2event(msg.data) });
 }
 
 async function gameInput() {
@@ -190,6 +188,7 @@ function subscribeEvents(game_id = '') {
       switch (msg.data) {
         case "game_start": 
           startGame();
+          document.getElementById("turn").innerHTML = "Game started, its your turn.";
           break;
         case "solved":    
           console.info("Game has ended, closing event stream for /sse/" + game_id);
