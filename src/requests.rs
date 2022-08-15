@@ -1,10 +1,9 @@
 
-use std::sync::{RwLock, RwLockWriteGuard};
-use crate::{request_data::{Username, RegistrationData, Character, EventData, PlayerAuth}, game::{GameManager, base_game::Game}};
-use rocket::{http::{ContentType, CookieJar, Cookie, uri::fmt::FromUriParam, Status}, fs::FileServer, fs::relative, serde::json::Json, State, request::{FromRequest, self, Outcome}, Shutdown, response::Redirect};
+use std::sync::RwLock;
+use crate::{request_data::{Username, RegistrationData, Character, EventData, PlayerAuth}, game::GameManager};
+use rocket::{http::{ContentType, CookieJar, Cookie}, serde::json::Json, State, Shutdown};
 use rocket::response::stream::{EventStream, Event};
-use rocket::serde::{Serialize, Deserialize};
-use rocket::tokio::sync::broadcast::{channel, Sender, error::RecvError};
+use rocket::tokio::sync::broadcast::{Sender, error::RecvError};
 use rocket::tokio::select;
 
 use self::Utils::game_by_player_auth;

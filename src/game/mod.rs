@@ -1,4 +1,4 @@
-use std::{fs, i32::MAX};
+use std::fs;
 use rand::Rng;
 use rocket::{log::private::info, State, tokio::sync::broadcast::Sender};
 

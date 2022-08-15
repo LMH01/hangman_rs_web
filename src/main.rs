@@ -1,8 +1,8 @@
-use std::sync::{RwLock, RwLockWriteGuard};
+use std::sync::{RwLock};
 
-use game::{GameManager, base_game::Game};
-use request_data::{EventData, PlayerAuth};
-use rocket::{fs::{FileServer, relative}, tokio::sync::broadcast::channel, http::CookieJar};
+use game::GameManager;
+use request_data::EventData;
+use rocket::{fs::{FileServer, relative}, tokio::sync::broadcast::channel};
 
 use crate::requests::*;
 
