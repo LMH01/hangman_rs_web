@@ -7,6 +7,8 @@ Most of the code for the website was copied from the university project.
 
 User authentication is done by using cookies that store a unique user id.
 
+When the page is reloaded while in a game the game state is restored.
+
 # REST API
 
 The communication between server and web browser is realized by a REST api, these are the available endpoints:
