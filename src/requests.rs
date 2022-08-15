@@ -168,22 +168,22 @@ pub fn registered(cookies: &CookieJar<'_>, game_manager: &State<RwLock<GameManag
             match game.completed() {
                 Some(win) => {
                     if win {
-                        return (ContentType::Text, String::from("win"));
+                        (ContentType::Text, String::from("win"))
                     } else {
-                        return (ContentType::Text, String::from("lost"));
+                        (ContentType::Text, String::from("lost"))
                     }
                 },
-                None => return (ContentType::Text, String::from("playing"))
+                None => (ContentType::Text, String::from("playing"))
             }
         },
         None => {
             if game_manager.id_taken(userid) {
-                return (ContentType::Text, String::from("registered"));
+                (ContentType::Text, String::from("registered"))
             } else {
-                return (ContentType::Text, String::from("false"))
+                (ContentType::Text, String::from("false"))
             }
         },
-    };
+    }
 }
 
 /// Server send events
@@ -223,10 +223,7 @@ pub async fn events(event: &State<Sender<EventData>>, mut end: Shutdown, game_id
 /// 'Some(i32)' when the id was found
 /// 'None' when the user id was not found or the cookie was not set
 pub fn user_id_from_cookies(cookies: &CookieJar<'_>) -> Option<i32> {
-    match cookies.get("userid") {
-        Some(cookie) => Some(cookie.value().parse().unwrap()),
-        None => None,
-    }
+    cookies.get("userid").map(|cookie| cookie.value().parse().unwrap())
 }
 
 /// Some utility functions

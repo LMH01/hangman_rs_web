@@ -242,10 +242,7 @@ impl Game {
     /// 
     /// `None` the player with the id was not found
     pub fn player_turn_position(&self, player_id: i32) -> Option<usize> {
-        match self.player_by_id(player_id) {
-            Some(player) => return Some(player.turn_position),
-            None => None,
-        }
+        self.player_by_id(player_id).map(|player| player.turn_position)
     }
 
     /// Checks if the game has been completed
@@ -281,7 +278,7 @@ enum GameState {
 }
 
 /// Player in a game
-#[derive(PartialEq)]
+#[derive(Eq, PartialEq)]
 pub struct Player {
     /// Unique number with which the player is identified by the server
     pub id: i32,

@@ -38,7 +38,7 @@ impl GameManager {
     /// Create a new `GameManager`
     pub fn new() -> Self {
         let file = fs::read_to_string("words.txt").expect("Unable to read words file!");
-        let words: Vec<String> = file.split("\n").map(|s| String::from(s).to_uppercase()).collect();    
+        let words: Vec<String> = file.split('\n').map(|s| String::from(s).to_uppercase()).collect();    
         Self {
             games: Vec::new(),
             words,
@@ -78,10 +78,10 @@ impl GameManager {
         let game_id = game.game_id();
         if new_game {
             self.current_open_game = Some(game);
-            RegisterResult { player_id, result_id: 2, game_id: game_id}
+            RegisterResult { player_id, result_id: 2, game_id}
         } else {    
             self.games.push(game);
-            RegisterResult { player_id, result_id: 3, game_id: game_id}
+            RegisterResult { player_id, result_id: 3, game_id}
         }
     }
 
@@ -176,11 +176,7 @@ impl GameManager {
     /// 
     /// `false` id is free
     pub fn id_taken(&self, id: i32) -> bool {
-        if self.player_ids.contains(&id) {
-            true 
-        } else {
-            false
-        }
+        self.player_ids.contains(&id)
     }
 }
 
