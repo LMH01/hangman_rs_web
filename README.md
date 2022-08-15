@@ -25,7 +25,7 @@ Path|Parameters|Return|Description
 /api/delete_game| - | string | Deletes the game the user is playing in
 /api/guessed_letters| - | string | All already guessed letters
 /api/teammates| - | string | Names of the teammates
-/api/is_players_turn | boolean | Checks if it is the players turn
+/api/is_players_turn| - | boolean | Checks if it is the players turn
 /api/game_id| - | string | The id of the game where the player is playing in
 /api/player_turn_position| - | string | The players position in the turn order
 /api/registered| - | String | Checks if the user is registered to a game
