@@ -6,7 +6,7 @@ use rocket::response::stream::{EventStream, Event};
 use rocket::tokio::sync::broadcast::{Sender, error::RecvError};
 use rocket::tokio::select;
 
-use self::Utils::game_by_player_auth;
+use self::utils::game_by_player_auth;
 
 /// Register a new player to the server
 /// 
@@ -230,7 +230,7 @@ pub fn user_id_from_cookies(cookies: &CookieJar<'_>) -> Option<i32> {
 }
 
 /// Some utility functions
-mod Utils {
+mod utils {
     use std::sync::RwLockWriteGuard;
 
     use crate::{game::{GameManager, base_game::Game}, request_data::PlayerAuth};

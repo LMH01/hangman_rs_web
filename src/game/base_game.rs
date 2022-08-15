@@ -210,12 +210,6 @@ impl Game {
     }
 
     /// # Returns
-    /// The current player index
-    pub fn current_player(&self) -> usize {
-        self.players[self.current_player].turn_position
-    }
-
-    /// # Returns
     /// The game id of this game
     pub fn game_id(&self) -> i32 {
         self.game_id
