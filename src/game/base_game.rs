@@ -4,13 +4,7 @@ use crate::EventData;
 
 use super::{GameManager, MAX_LIVES};
 
-enum GameState {
-    /// Symbolizes that the game has not yet started
-    Waiting,
-    /// Symbolizes that this game is over. Boolean value determines if the game was won (`true`) or lost (`false`).
-    Done(bool),// Add state to done that signifies if the game was won or lost: DONE(boolean)
-}
-
+/// Representation of a game
 pub struct Game {
     /// The players that are assigned to the game
     players: Vec<Player>,
@@ -48,8 +42,9 @@ impl Game {
 
     /// Adds the player to the game.
     /// # Returns
-    /// 'true' when the player was added
-    /// 'false' when the player was not added because the game was already started
+    /// `true` when the player was added
+    /// 
+    /// `false` when the player was not added because the game was already started
     pub fn add_player(&mut self, player: Player) -> bool { //I know that i should probably use an result for this use case
         match self.game_state {
             GameState::Waiting => {
@@ -61,9 +56,13 @@ impl Game {
     }
 
     /// Returns the current word in the following formatting:
+    /// 
     /// If no letters are guessed:   _____
+    /// 
     /// If some letters are guessed: _E___
+    /// 
     /// If all letters are guessed:  HELLO
+    /// 
     /// If the game is lost the whole word is returned;
     pub fn game_string(&self) -> String {
         let mut string = String::new();
@@ -84,8 +83,9 @@ impl Game {
 
     /// This function can be used to retrieve the word without the white spaces after the word was guessed or the game has ended.
     /// # Returns
-    /// 'Option(String)' when the word was guessed correctly, string is the word
-    /// 'None' when the word is not yet guessed
+    /// `Option(String)` when the word was guessed correctly, `string` is the word
+    /// 
+    /// `None` when the word is not yet guessed
     pub fn word(&self) ->  Option<String> {
         match self.game_state {
             GameState::Done(_win) => Some(self.word.get()),
@@ -93,13 +93,17 @@ impl Game {
         }
     }
 
-    /// Guesses a letter and returns a number to indicate that status:
+    /// Guesses a letter and returns a number to indicate that status
     /// # Returns
-    /// '1' letter was correct and the word is guessed completely
-    /// '2' letter was correct
-    /// '3' letter was false
-    /// '4' letter was false and all lives are gone
-    /// '5' letter was not guessed because it is not the players turn
+    /// `1` when the letter was correct and the word is guessed completely
+    /// 
+    /// `2` when letter was correct
+    /// 
+    /// `3` when letter was false
+    /// 
+    /// `4` when letter was false and all lives are gone
+    /// 
+    /// `5` when letter was not guessed because it is not the players turn
     pub fn guess_letter(&mut self, user_id: i32, c: char, event: &State<Sender<EventData>>) -> i32 {
         let c = c.to_uppercase().to_string().chars().next().unwrap();
         let next_player = match self.players.len()-1 == self.current_player {
@@ -176,7 +180,7 @@ impl Game {
     }
 
     /// # Returns
-    /// 'true' when the word has been guessed successfully
+    /// `true` when the word has been guessed successfully
     fn solved(&self) -> bool {
         for letter in &self.word.letters {
             if !letter.guessed {
@@ -187,8 +191,9 @@ impl Game {
     }
 
     /// # Returns
-    /// 'Some(Player)' when the player was found
-    /// 'None' when the player with the id does not exist
+    /// `Some(Player)` when the player was found
+    /// 
+    /// `None` when the player with the id does not exist
     fn player_by_id(&self, id: i32) -> Option<&Player> {
         for player in &self.players {
             if player.id == id {
@@ -240,6 +245,7 @@ impl Game {
 
     /// # Return
     /// `Some(usize)` the position of the player in the turn order
+    /// 
     /// `None` the player with the id was not found
     pub fn player_turn_position(&self, player_id: i32) -> Option<usize> {
         match self.player_by_id(player_id) {
@@ -250,9 +256,12 @@ impl Game {
 
     /// Checks if the game has been completed
     /// # Returns
-    /// 'None' when the game is still running
-    /// 'Some(bool)' when the game has been completed. Boolean indicates if the game was won (`true`) or lost (`false`).
+    /// `None` when the game is still running
+    /// 
+    /// `Some(bool)` when the game has been completed. Boolean indicates if the game was won (`true`) or lost (`false`).
+    /// 
     /// `true` when the game has been completed
+    /// 
     /// `false` when the game is still running
     pub fn completed(&self) -> Option<bool> {
         match self.game_state {
@@ -267,17 +276,31 @@ impl Game {
     }
 }
 
+/// The different states a game can be in
+enum GameState {
+    /// Symbolizes that the game has not yet started
+    Waiting,
+    /// Symbolizes that this game is over. 
+    /// 
+    /// Boolean value determines if the game was won (`true`) or lost (`false`).
+    Done(bool),// Add state to done that signifies if the game was won or lost: DONE(boolean)
+}
+
+/// Player in a game
 #[derive(PartialEq)]
 pub struct Player {
     /// Unique number with which the player is identified by the server
     pub id: i32,
     /// The place in the turn order for this player
+    /// 
+    /// Starts at `0`
     pub turn_position: usize,
     /// The name of this player
     name: String,
 }
 
 impl Player {
+    /// Create a new player
     pub fn new(id: i32, name: String, turn_position: usize) -> Self {
         Self { 
             id, 
@@ -287,11 +310,15 @@ impl Player {
     }
 }
 
+/// Word that should be guessed
 struct Word {
     pub letters: Vec<Letter>,
 }
 
 impl Word {
+    /// Create a new word
+    /// # Params
+    /// `word` the word that this type should represent
     fn new(word: &str) -> Self {
         let mut letters = Vec::new();
         for c in word.chars() {
@@ -313,12 +340,16 @@ impl Word {
     }
 }
 
+/// Letter in a word
 struct Letter {
+    /// Character of this letter
     character: char,
+    /// If the character has been guessed
     guessed: bool,
 }
 
 impl Letter {
+    /// Create a new character
     fn new(character: char) -> Self {
         Self { 
             character, 

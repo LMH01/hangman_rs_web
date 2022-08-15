@@ -9,14 +9,24 @@ use self::base_game::{Game, Player};
 /// Contains all base components that are required to run a game
 pub mod base_game;
 
+/// Determines how many lives players have when playing a game.
+/// 
+/// Should not be set higher than 10 because images will fail to load.
 const MAX_LIVES: i32 = 10;
 
+/// Used to manage all currently running games.
+/// 
+/// One `GameManager` instance is managed by rocket and given to each request handler.
 pub struct GameManager {
     /// Contains all games that are currently running
     games: Vec<Game>,
-    /// All words from which a random word can be chosen for the game
+    /// All words from which a random word can be chosen for a game
     words: Vec<String>,
-    /// All player ids that are already in use. A player id uniquely identifies the given player. It is also used to authorize the player against the server.
+    /// All player ids that are already in use. 
+    /// 
+    /// A player id uniquely identifies the given player. 
+    /// 
+    /// It is also used to authorize the player against the server.
     player_ids: Vec<i32>,
     /// The current open game where a new player is assigned to
     current_open_game: Option<Game>,
@@ -25,6 +35,7 @@ pub struct GameManager {
 }
 
 impl GameManager {
+    /// Create a new `GameManager`
     pub fn new() -> Self {
         let file = fs::read_to_string("words.txt").expect("Unable to read words file!");
         let words: Vec<String> = file.split("\n").map(|s| String::from(s).to_uppercase()).collect();    
@@ -39,14 +50,9 @@ impl GameManager {
 
     /// Registers a new game
     /// # Params
-    /// 'name' the name of the player that registers the new game
+    /// `name` the name of the player that registers the new game
     /// # Returns
-    /// 'Some<i32>' registration was successful, user id is returned
-    /// 'None' registration failed
-    /// 
-    /// # result_id
-    /// '2' player has been added to existing game and game starts
-    /// '3' new game has been created and player is waiting for second player
+    /// [RegisterResult](struct.RegisterResult.html) the result of the registration
     pub fn register_game(&mut self, name: String, event: &State<Sender<EventData>>) -> RegisterResult {
         // Determine if a game is already open or if a new one should be created
         let mut new_game = false;
@@ -105,9 +111,9 @@ impl GameManager {
    
     /// # Returns
     /// 
-    /// 'Some(&mut Game)' when the game was found where the user is playing in
+    /// `Some(&mut Game)` when the game was found where the user is playing in
     /// 
-    /// 'None' the player id does not appear to be assigned to a game
+    /// `None` the player id does not appear to be assigned to a game
     pub fn game_by_player_id(&mut self, id: i32) -> Option<&mut Game> {
         for game in &mut self.games {
             for player in game.players() {
@@ -120,10 +126,13 @@ impl GameManager {
     }
 
     /// Deletes the game for the specified user.
-    /// This will also delete all users that are assigned to that game and free the user ids.
+    /// 
+    /// This will also delete all users that are assigned to that game and free the user ids. 
+    /// This means that the user_is no longer recognized by the server and requests that require a user_id to be set will fail with a 403 http response.
     /// # Returns
-    /// 'true' game was deleted
-    /// 'false' no game found for user
+    /// `true` game was deleted
+    /// 
+    /// `false` no game found for user
     pub fn delete_game(&mut self, id: i32) -> bool {
         for (index, game) in &mut self.games.iter().enumerate() {
             for player in game.players() {
@@ -164,6 +173,7 @@ impl GameManager {
     /// Checks if the `id` has been assigned to a player
     /// # Returns
     /// `true` id is assigned to user
+    /// 
     /// `false` id is free
     pub fn id_taken(&self, id: i32) -> bool {
         if self.player_ids.contains(&id) {
@@ -179,6 +189,12 @@ pub struct RegisterResult {
     /// The id of the new player
     pub player_id: i32,
     /// The result that should be sent back to the client
+    /// 
+    /// Is one of the following:
+    /// 
+    /// '2' - player has been added to an existing game and game starts
+    /// 
+    /// '3' - new game has been created and player is waiting for second player
     pub result_id: i32,
     /// The game id to which the user is registered
     pub game_id: i32,
