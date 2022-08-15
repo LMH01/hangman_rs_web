@@ -1,12 +1,13 @@
 use std::sync::{RwLock, RwLockWriteGuard};
 
-use game::{GameManager, Game};
+use game::{GameManager, base_game::Game};
 use rocket::{http::{ContentType, CookieJar, Cookie, uri::fmt::FromUriParam, Status}, fs::FileServer, fs::relative, serde::json::Json, State, request::{FromRequest, self, Outcome}, Shutdown, response::Redirect};
 use rocket::response::stream::{EventStream, Event};
 use rocket::serde::{Serialize, Deserialize};
 use rocket::tokio::sync::broadcast::{channel, Sender, error::RecvError};
 use rocket::tokio::select;
 
+/// The underlying game, contains logic and components that are required to run the game
 mod game;
 
 #[macro_use] extern crate rocket;
@@ -155,7 +156,7 @@ fn registered(cookies: &CookieJar<'_>, game_manager: &State<RwLock<GameManager>>
     };
 }
 
-#[get("/sse/<game_id>")]// TODO Umbauen, sodass es zu /sse/<game_id>/<player_number> wird, sodass jeder spieler nur noch events bekommt, die für ihn interessant sind. Außerdem: Die Fehler fixen
+#[get("/sse/<game_id>")]
 async fn events(event: &State<Sender<EventData>>, mut end: Shutdown, game_id: i32) -> EventStream![] {
     let mut rx = event.subscribe();
     EventStream! {
@@ -286,8 +287,8 @@ fn user_id_from_cookies(cookies: &CookieJar<'_>) -> Option<i32> {
 
 // TODO:  
 //  1. Authentifikation umbauen, (um http headers zu benutzen (bin ich mit mittlerweile nicht mehr so sicher, ich glaube, dass cookies keine schlechte Idee sind))
+//  2. SSE handling umbauen, dass jeder nur noch das bekommt, was für ihn relevant ist (Nicht wirklich nötig, wird bei Acquire_rs dann vielleicht eingebaut)
 
-//  2. SSE handling umbauen, dass jeder nur noch das bekommt, was für ihn relevant ist
 //  3. Code aufräumen, nicht benötigtes weg löschen, variablen umbenennen (vor allem in JavaScript Teil)
 //  3.1 Debug prints aufräumen (sowohl server, als auch client)
 //  3.2 Alles, was user beinhaltet in player umbenennen
