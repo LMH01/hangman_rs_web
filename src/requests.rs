@@ -198,7 +198,6 @@ pub async fn events(event: &State<Sender<EventData>>, mut end: Shutdown, game_id
     let mut rx = event.subscribe();
     EventStream! {
         loop {
-            info!("Waiting for data, game_id is {}", game_id);
             let msg = select! {
                 msg = rx.recv() => match msg {
                     Ok(msg) => msg,
@@ -208,9 +207,7 @@ pub async fn events(event: &State<Sender<EventData>>, mut end: Shutdown, game_id
                 _ = &mut end => break,
             };
             let msg_game_id = msg.game_id();
-            info!("{} | {}", msg_game_id, game_id);
             if msg_game_id == game_id {
-                info!("Yielding data: {:#?}", &msg);
                 yield Event::json(&msg);
             }
         }

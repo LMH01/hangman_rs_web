@@ -32,12 +32,11 @@ fn rocket() -> _ {
 // TODO:  
 //  1. Authentifikation umbauen, (um http headers zu benutzen (bin ich mit mittlerweile nicht mehr so sicher, ich glaube, dass cookies keine schlechte Idee sind))
 //  2. SSE handling umbauen, dass jeder nur noch das bekommt, was für ihn relevant ist (Nicht wirklich nötig, wird bei Acquire_rs dann vielleicht eingebaut)
-
 //  4. Code dokumentieren, vor allem die Funktionen in der Main, da dokumentieren, was genau zurück kommt 
 //    (ggf. kann ich darauf ja dann in der Readme verweisen und das gebuildete rust doc dazu mit in das Repo packen)
+//  4.1 cargo clippy ausführen und Warnungen beheben
+//  5. README überarbeiten und die REST Pfade richtig dokumentieren
 
 //  3. Code aufräumen, nicht benötigtes weg löschen, variablen umbenennen (vor allem in JavaScript Teil)
 //  3.1 Debug prints aufräumen (sowohl server, als auch client)
 //  3.2 Alles, was user beinhaltet in player umbenennen
-//  4.1 cargo clippy ausführen und Warnungen beheben
-//  5. README überarbeiten und die REST Pfade richtig dokumentieren

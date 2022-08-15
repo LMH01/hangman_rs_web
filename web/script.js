@@ -22,7 +22,6 @@ async function register() {
   }
   
   var response = await postData('api/register', { username: document.getElementById("input-username").value });
-  console.log(response);
   
   if (response.result == 2) {
     playerTurnPosition = 0;
@@ -65,7 +64,7 @@ function loggedIn() {
 }
 
 function startGame() {
-  console.log("You are " + playerTurnPosition);
+  console.info("You are " + playerTurnPosition);
   updateLives();
   updateWord();
   updateImage();
@@ -74,17 +73,11 @@ function startGame() {
 }
 
 async function gameInput() {
-
-  console.log(document.getElementById("input-letter").value);
-
   if (!(document.getElementById("input-letter").value.length === 1) || !(document.getElementById("input-letter").value.match(/[a-zA-Z]/))) {
     alert("Input only one character");
     document.getElementById("input-letter").value = "";
     return;
   }
-  console.log("Input: " + $("#input-letter").val());
-  console.log("Uppercase: " + $("#input-letter").val().toUpperCase());
-  console.log();
   if (($("#gameword").text().indexOf($("#input-letter").val().toUpperCase())) != -1) {
     alert("This character was already submitted");
     document.getElementById("input-letter").value = "";
@@ -93,7 +86,6 @@ async function gameInput() {
   document.getElementById("turn").value = "Wait for your turn";
 
   var response = await postData('api/submit_char', { character: document.getElementById("input-letter").value[0] });
-  console.log(response)
   switch (response) {
     case 1: updateImage();
       gameEnd(true);
@@ -118,18 +110,6 @@ async function gameInput() {
   document.getElementById("input-letter").value = "";
 }
 
-function myturn(number) {
-
-  console.log("turn:" + number);
-  console.log("playernumber:" + playerTurnPosition);
-  if (number == playerTurnPosition.toString()) {
-    console.log("MEEE");
-    return true;
-  }
-  else
-    return false;
-}
-
 async function gameEnd(won) {
   updateWord();
   document.getElementById("game").hidden = true;
@@ -143,13 +123,11 @@ async function gameEnd(won) {
   }
   
   var response = await fetchData('api/word');
-  console.log("Response was: " + response);
   document.getElementById("wordwas").innerHTML = "The Word was: " + response;
 }
 
 async function deleteGame() {
   var response = await fetchData('api/delete_game');
-  console.log(response);
   location.reload();
 }
 
@@ -179,8 +157,6 @@ function subscribeEvents(gameId = '') {
 
     events.addEventListener("message", (env) => {
       var data = env.data;
-      console.log("received data: " + JSON.stringify(data));
-      console.log("decoded data", JSON.stringify(JSON.parse(data)));
       var msg = JSON.parse(data);
       switch (msg.data) {
         case "game_start": 
@@ -220,7 +196,7 @@ function subscribeEvents(gameId = '') {
     });
 
     events.addEventListener("open", () => {
-      console.log(`connected to event stream at /sse/` + gameId);
+      console.info(`Connected to event stream at /sse/` + gameId);
     });
 
     events.addEventListener("error", () => {
@@ -270,12 +246,11 @@ $(document).ready(async function () {
   //Login Logic
   //get username from cookie
   let username = getCookie("userid");
-  console.log(login);
   if (username == "" || username == null) {
     document.getElementById("login").hidden = false;
   } else {
     var result = await fetchData('api/registered');
-    console.log('Checking registration status: ' + result);
+    console.info('Checking registration status: ' + result);
     switch (result) {
         case 'false':
           document.getElementById("login").hidden = false;
