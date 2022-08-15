@@ -11,19 +11,25 @@ User authentication is done by using cookies that store a unique user id.
 
 The communication between server and web browser is realized by a REST api, these are the available endpoints:
 
-### Note: this list is under construction!
+### Note: All endpoints except `/api/register` and `/api/registered` can only be accessed when a valid `userid` cookie is set.
 
 Path|Parameters|Return|Description
 -|-|-|-
-/api/register|username|Integer in range 1-3, containing status|Register a new user
-/api/user_exists|username|boolean|Check if user exists
-/api/partner_name|username|String if partner exists, false otherwise|Get partner name
-/api/game_state|username|String|Get game state
-/api/game_string|username|String|Returns the current word as it is guessed currently
-/api/submit_char|username, char|Integer in range 1-5, containing status|Submit a character to the game
-/api/lives|username|Integer|Get number of lives left
-/api/delete_game|username|boolean|Delete game
-/sse|-|-|Server Side Events
+/api/register|username|RegistrationData|Registers a player to the server
+/api/submit_char| character | integer in range 1-5|Submits a character for the game
+/api/lives| - | string | The number of lives left
+/api/game_string| - | string | The game string
+/api/word| - | string | The correct word once the game has ended
+/api/delete_game| - | string | Deletes the game the user is playing in
+/api/guessed_letters| - | string | All already guessed letters
+/api/teammates| - | string | Names of the teammates
+/api/is_players_turn | boolean | Checks if it is the players turn
+/api/game_id| - | string | The id of the game where the player is playing in
+/api/player_turn_position| - | string | The players position in the turn order
+/api/registered| - | String | Checks if the user is registered to a game
+/sse/<game_id>|-|-|Server Side Events
+
+### For a more detailed explanation see the documentation that can be build by running `cargo doc`.
 
 ## Rocket
 This project uses the [web framework rocket](https://github.com/SergioBenitez/Rocket) to realize the server.
