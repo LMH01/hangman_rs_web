@@ -2,7 +2,7 @@ use std::sync::{RwLock};
 
 use game::GameManager;
 use request_data::EventData;
-use rocket::{fs::{FileServer, relative}, tokio::sync::broadcast::channel};
+use rocket::{fs::{FileServer, relative}, tokio::sync::broadcast::channel, Config};
 
 use crate::requests::*;
 
@@ -22,7 +22,9 @@ mod request_data;
 /// Start server
 #[launch]
 fn rocket() -> _ {
-    rocket::build()
+    let config = Config::figment().merge(("port", 11511));
+    //rocket::build()
+    rocket::custom(config)
         .mount("/", FileServer::from(relative!("web")))
         .mount("/", routes![events, register, registered, submit_char, lives, game_string, player_turn_position, word, guessed_letters, teammates, is_players_turn, game_id, delete_game])
         .manage(RwLock::new(GameManager::new()))
