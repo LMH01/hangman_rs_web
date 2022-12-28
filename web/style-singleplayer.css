@@ -1,3 +1,66 @@
-.new-game-container {
-    margin-top: 3vh;
+/*All base formatting is done for desktop view*/
+#word-container {
+    width: 12%;
+}
+
+#loading-word {
+    text-align: center;
+    height: 30px;
+}
+
+#word {
+    text-align: center;
+    color: white;
+}
+
+#user-input {
+    width: fit-content;
+}
+
+#new-game-container {
+    margin-top: 25px;
+}
+
+#guess-text {
+    color: white;
+}
+
+#button-container {
+    margin-top: 25px;
+}
+
+#guessed-letters-title {
+    color: white;
+    margin-top: 10px;
+}
+
+.inner-container {
+    background-color: #1b1b1b;
+    padding: 8px;
+}
+
+#guessed-letters {
+    color: gray;
+}
+
+#lives-left-title {
+    color: white;
+    margin-top: 10px;
+    display: inline-block;
+}
+
+#lives-left-placeholder {
+    display: inline-block;
+}
+
+#lives-left {
+    color: gray;
+    display: inline-block;
+}
+
+/*Special formatting on phones devices*/
+@media (max-width: 600px) {
+    #word-container {
+        width: 80%;
+    }
 }
