@@ -1,7 +1,8 @@
 # Hangman_rs_web
 
 As of 29.12.2022 the multiplayer part has been removed from the game. It will probably be added back once the new singeplayer mode works.
-To play in multiplayer mode and view more information about my university project please checkout the branch `uni-state`. This branch contains the state in which the project was in when I initially reworked the project from university to use a rust server.
+To play in multiplayer mode and view more information about my university project please checkout the branch [uni-state](https://github.com/LMH01/hangman_rs_web/tree/uni-state).
+This branch contains the state in which the project was in when I initially reworked the project from university to use a rust server.
 
 User authentication is done by using cookies that store a unique user id.
 
@@ -15,7 +16,7 @@ The communication between server and web browser is realized by a REST api, thes
 
 Path|Parameters|Return|Description
 -|-|-|-
-/singleplayer||singleplayer html page|Returns the html page for singleplayer mode
+/singleplayer| - |singleplayer html page|Returns the html page for singleplayer mode
 /api/register|username|RegistrationData|Registers a player to the server
 /api/submit_char| character | integer in range 1-5|Submits a character for the game
 /api/lives| - | string | The number of lives left
