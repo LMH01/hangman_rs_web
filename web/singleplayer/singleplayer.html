@@ -13,6 +13,7 @@
     <link rel="stylesheet" href="../style.css">
     <link rel="stylesheet" href="singleplayer/style-singleplayer.css">
     <script src="../wasm/hangman_rs_wasm.js"></script>
+    <script src="singleplayer/utils.js"></script>
     <script src="singleplayer/singleplayer.js"></script>
 </head>
 <body>
@@ -39,7 +40,7 @@
             <p id="guess-text">Guess: <input type="" id="user-input" placeholder="Type letter or word"></p>
         </div>
         <div class="d-grid gap-2">
-            <button class="btn btn-success" id="button-submit">
+            <button class="btn btn-success" id="button-submit" onclick="debug()">
                 Submit guess
             </button>
         </div>
