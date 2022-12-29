@@ -1,12 +1,17 @@
 
-use std::sync::RwLock;
+use std::{sync::RwLock, path::Path};
 use crate::{request_data::{Username, RegistrationData, Character, EventData, PlayerAuth}, game::GameManager};
-use rocket::{http::{ContentType, CookieJar, Cookie}, serde::json::Json, State, Shutdown};
+use rocket::{http::{ContentType, CookieJar, Cookie}, serde::json::Json, State, Shutdown, fs::NamedFile};
 use rocket::response::stream::{EventStream, Event};
 use rocket::tokio::sync::broadcast::{Sender, error::RecvError};
 use rocket::tokio::select;
 
 use self::utils::game_by_player_auth;
+
+#[get("/singleplayer")]
+pub async fn singleplayer() -> Option<NamedFile> {
+    NamedFile::open(Path::new("web/singleplayer/singleplayer.html")).await.ok()
+}
 
 /// Register a new player to the server
 /// 

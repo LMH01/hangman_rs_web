@@ -26,7 +26,7 @@ fn rocket() -> _ {
     //rocket::build()
     rocket::custom(config)
         .mount("/", FileServer::from(relative!("web")))
-        .mount("/", routes![events, register, registered, submit_char, lives, game_string, player_turn_position, word, guessed_letters, teammates, is_players_turn, game_id, delete_game])
+        .mount("/", routes![singleplayer, events, register, registered, submit_char, lives, game_string, player_turn_position, word, guessed_letters, teammates, is_players_turn, game_id, delete_game])
         .manage(RwLock::new(GameManager::new()))
         .manage(channel::<EventData>(1024).0)
 }
