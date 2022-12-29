@@ -1,13 +1,12 @@
 
 use std::{sync::RwLock, path::Path};
-use crate::{request_data::{Username, RegistrationData, Character, EventData, PlayerAuth}, game::GameManager};
-use rocket::{http::{ContentType, CookieJar, Cookie}, serde::json::Json, State, Shutdown, fs::NamedFile};
-use rocket::response::stream::{EventStream, Event};
-use rocket::tokio::sync::broadcast::{Sender, error::RecvError};
-use rocket::tokio::select;
+use crate::{request_data::{Character, PlayerAuth, PlayerAuthError}, game::GameManager};
+use rocket::{http::{ContentType, CookieJar, Cookie}, serde::json::Json, State, fs::NamedFile};
+use uuid::Uuid;
 
 use self::utils::game_by_player_auth;
 
+/// Returns the singleplayer html page
 #[get("/singleplayer")]
 pub async fn singleplayer() -> Option<NamedFile> {
     NamedFile::open(Path::new("web/singleplayer/singleplayer.html")).await.ok()
@@ -20,29 +19,29 @@ pub async fn singleplayer() -> Option<NamedFile> {
 /// This cookie is deleted when the game ends.
 /// 
 /// # Requires
-/// The user needs to send a username formatted in a json string in the post request body.
+/// Nothing
 /// 
 /// # Return
-/// [RegistrationData](../request_data/struct.RegistrationData.html) indicating the outcome of the registration
-#[post("/api/register", data = "<username>")]
-pub fn register(cookies: &CookieJar<'_>, game_manager: &State<RwLock<GameManager>>, username: Json<Username<'_>>, event: &State<Sender<EventData>>) -> Json<RegistrationData> {
-    println!("Username: {}", username.username);
-    let result = game_manager.write().unwrap().register_game(String::from(username.username), event);
-    cookies.add(Cookie::new("userid", result.player_id.to_string()));
-    Json(RegistrationData {result: result.result_id, game_id: result.game_id})
+/// Uuid that is required to authenticate subsequent requests to the server.
+#[post("/api/register")]
+pub fn register(cookies: &CookieJar<'_>, game_manager: &State<RwLock<GameManager>>) -> Json<String> {
+    let result = game_manager.write().unwrap().register_game();
+    cookies.add(Cookie::new("uuid", result.player_id.to_string()));
+    Json(result.player_id.to_string())
 }
 
 /// Submits a character to the game
 /// 
 /// # Requires
 /// The user needs to send a character formatted in a json string in the post request body.
+/// 
 /// # Return
 /// The result of [Game::guess_letter](../game/base_game/struct.Game.html#method.guess_letter)
 #[post("/api/submit_char", data = "<character>")]
-pub fn submit_char(game_manager: &State<RwLock<GameManager>>, player_auth: PlayerAuth, character: Json<Character>, event: &State<Sender<EventData>>) -> (ContentType, String) {
+pub fn submit_char(game_manager: &State<RwLock<GameManager>>, player_auth: PlayerAuth, character: Json<Character>) -> (ContentType, String) {
     let mut game_manager = game_manager.write().unwrap();
     let game = game_by_player_auth(&mut game_manager, player_auth).unwrap();
-    (ContentType::Text, game.guess_letter(player_auth.player_id, character.character, event).to_string())
+    (ContentType::Text, game.guess_letter(character.character).to_string())
 }
 
 /// The amount of lives left
@@ -86,14 +85,13 @@ pub fn word(game_manager: &State<RwLock<GameManager>>, player_auth: PlayerAuth) 
 /// # Warning
 /// The game will be deleted directly, the player will not have to confirm that the game should be deleted!
 #[get("/api/delete_game")]
-pub fn delete_game(cookies: &CookieJar<'_>, game_manager: &State<RwLock<GameManager>>, player_auth: PlayerAuth, event: &State<Sender<EventData>>) -> (ContentType, String) {
+pub fn delete_game(cookies: &CookieJar<'_>, game_manager: &State<RwLock<GameManager>>, player_auth: PlayerAuth) -> (ContentType, String) {
     // I know that in this way the user does not have to confirm the deletion of the game.
     let mut game_manager = game_manager.write().unwrap();
     game_manager.delete_game(player_auth.player_id);
     // Delete cookie
-    cookies.remove(Cookie::named("userid"));
+    cookies.remove(Cookie::named("uuid"));
     // Send event to users
-    let _x = event.send(EventData::new(0, player_auth.game_id, String::from("game_deleted")));
     (ContentType::Text, String::from("Game has been deleted, users have been reset"))
 }
 
@@ -117,19 +115,6 @@ pub fn teammates(game_manager: &State<RwLock<GameManager>>, player_auth: PlayerA
     (ContentType::Text, game.teammates(player_auth.player_id))
 }
 
-/// Check if its the players turn
-/// 
-/// # Returns
-/// `true` if it is the players turn
-/// 
-/// `false` if it is not the players turn
-#[get("/api/is_players_turn")]
-pub fn is_players_turn(game_manager: &State<RwLock<GameManager>>, player_auth: PlayerAuth) -> (ContentType, String) {
-    let mut game_manager = game_manager.write().unwrap();
-    let game = game_by_player_auth(&mut game_manager, player_auth).unwrap();
-    (ContentType::Text, game.is_players_turn(player_auth.player_id).to_string())
-}
-
 /// The game id to which the player is registered
 #[get("/api/game_id")]
 pub fn game_id(game_manager: &State<RwLock<GameManager>>, player_auth: PlayerAuth) -> (ContentType, String) {
@@ -138,23 +123,10 @@ pub fn game_id(game_manager: &State<RwLock<GameManager>>, player_auth: PlayerAut
     (ContentType::Text, game.game_id().to_string()) 
 }
 
-/// The players turn position
-#[get("/api/player_turn_position")]
-pub fn player_turn_position(game_manager: &State<RwLock<GameManager>>, player_auth: PlayerAuth) -> (ContentType, String) {
-    let mut game_manager = game_manager.write().unwrap();
-    let game = game_by_player_auth(&mut game_manager, player_auth).unwrap();
-    match game.player_turn_position(player_auth.player_id) {
-        Some(position) => (ContentType::Text, position.to_string()),
-        None => (ContentType::Text, String::from("Invalid user id")),
-    }
-}
-
-/// Check if the submitted `user_id` is valid and the user is assigned to a game
+/// Check if the submitted `uuid` is valid and the user is assigned to a game
 /// 
 /// # Return
-/// `false` when the `user_id` is invalid
-/// 
-/// `registered` when the user exists and is waiting for a game to start
+/// `false` when the `uuid` is invalid
 /// 
 /// `playing` when the user exists and is playing in a game
 /// 
@@ -163,9 +135,9 @@ pub fn player_turn_position(game_manager: &State<RwLock<GameManager>>, player_au
 /// `lost` if the game has ended and was lost but is not yet deleted
 #[get("/api/registered")]
 pub fn registered(cookies: &CookieJar<'_>, game_manager: &State<RwLock<GameManager>>) -> (ContentType, String) {
-    let userid = match user_id_from_cookies(cookies) {
-        Some(id) => id,
-        None => return (ContentType::Text, String::from("false")),
+    let userid = match uuid_from_cookies(cookies) {
+        Ok(id) => id,
+        Err(_err) => return (ContentType::Text, String::from("false")),
     };
     let mut game_manager = game_manager.write().unwrap();
     match game_manager.game_by_player_id(userid) {
@@ -181,51 +153,25 @@ pub fn registered(cookies: &CookieJar<'_>, game_manager: &State<RwLock<GameManag
                 None => (ContentType::Text, String::from("playing"))
             }
         },
-        None => {
-            if game_manager.id_taken(userid) {
-                (ContentType::Text, String::from("registered"))
-            } else {
-                (ContentType::Text, String::from("false"))
-            }
-        },
+        None => (ContentType::Text, String::from("false")),
     }
 }
 
-/// Server send events
-/// 
-/// For each game a separate sse stream exists, these streams are accessed by submitting a get request to `/sse/<game_id>`.
-/// 
-/// This makes it possible to have multiple games run in parallel without interferences in the sse streams.
-/// 
-/// Only sse events that match the `game_id` will be transmitted back.
-#[get("/sse/<game_id>")]
-pub async fn events(event: &State<Sender<EventData>>, mut end: Shutdown, game_id: i32) -> EventStream![] {
-    let mut rx = event.subscribe();
-    EventStream! {
-        loop {
-            let msg = select! {
-                msg = rx.recv() => match msg {
-                    Ok(msg) => msg,
-                    Err(RecvError::Closed) => break,
-                    Err(RecvError::Lagged(_)) => continue,
-                },
-                _ = &mut end => break,
-            };
-            let msg_game_id = msg.game_id();
-            if msg_game_id == game_id {
-                yield Event::json(&msg);
-            }
-        }
-    }
-}
-
-/// Retrieves the user id from the `userid` cookie
+/// Retrieves the user id from the `uuid` cookie.
 /// 
 /// # Returns
-/// 'Some(i32)' when the id was found
-/// 'None' when the user id was not found or the cookie was not set
-pub fn user_id_from_cookies(cookies: &CookieJar<'_>) -> Option<i32> {
-    cookies.get("userid").map(|cookie| cookie.value().parse().unwrap())
+/// - `Some(Uuid)` when the id was found and is formatted as a valid uuid.
+/// - `Err(PlayerAuthError)` when the user id was not found or the cookie was not set
+pub fn uuid_from_cookies(cookies: &CookieJar<'_>) -> Result<Uuid, PlayerAuthError> {
+    match cookies.get("uuid").map(|cookie| cookie.value().parse::<String>().unwrap()) {
+        Some(id) => {
+            match Uuid::parse_str(&id) {
+                Ok(uuid) => return Ok(uuid),
+                Err(_err) => return Err(PlayerAuthError::Invalid),
+            }
+        },
+        None => Err(PlayerAuthError::Missing),
+    }
 }
 
 /// Some utility functions

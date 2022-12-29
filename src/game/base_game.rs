@@ -1,57 +1,41 @@
-use rocket::{State, tokio::sync::broadcast::Sender};
+use std::collections::HashMap;
 
-use crate::EventData;
+use uuid::Uuid;
 
 use super::{GameManager, MAX_LIVES};
 
 /// Representation of a game
 pub struct Game {
     /// The players that are assigned to the game
-    players: Vec<Player>,
+    players: HashMap<Uuid, Player>,
     /// The word that should be guessed
     word: Word,
-    /// The index of the current player
-    current_player: usize,
     /// Stores the state of the game. When the game is started no more players can be added
     game_state: GameState,
     /// Stores the lives left
     lives: i32,
-    /// The id of this game. Used to determine to whom server send events should be sent
-    game_id: i32,
+    /// The id of this game.
+    game_id: Uuid,
     /// All letters that where guessed
     guessed_letters: Vec<Letter>,
 }
 
 impl Game {
-    /// Construct a new game with a random word
-    pub fn new(game_manager: &GameManager, game_id: i32) -> Self {
+    /// Construct a new game with a random word and an assigned player.
+    pub fn new(game_manager: &GameManager, game_id: Uuid, player_id: Uuid) -> Self {
         let mut guessed_letters = Vec::new();
         for c in b'a'..=b'z' {
             guessed_letters.push(Letter::new((c as char).to_uppercase().to_string().chars().next().unwrap()));
         }
+        let mut players = HashMap::new();
+        players.insert(player_id, Player::new(player_id));
         Self {
-            players: Vec::new(),
+            players,
             word: Word::new(&game_manager.random_word()),
-            current_player: 0,
-            game_state: GameState::Waiting,
+            game_state: GameState::Running,
             lives: MAX_LIVES,
             game_id,
             guessed_letters,
-        }
-    }
-
-    /// Adds the player to the game.
-    /// # Returns
-    /// `true` when the player was added
-    /// 
-    /// `false` when the player was not added because the game was already started
-    pub fn add_player(&mut self, player: Player) -> bool { //I know that i should probably use an result for this use case
-        match self.game_state {
-            GameState::Waiting => {
-                self.players.push(player);
-                true
-            },
-            _ => false,
         }
     }
 
@@ -103,24 +87,13 @@ impl Game {
     /// 
     /// `4` when letter was false and all lives are gone
     /// 
-    /// `5` when letter was not guessed because it is not the players turn
-    pub fn guess_letter(&mut self, user_id: i32, c: char, event: &State<Sender<EventData>>) -> i32 {
+    /// '5' when the letter was already guessed
+    pub fn guess_letter(&mut self, c: char) -> i32 {
         let c = c.to_uppercase().to_string().chars().next().unwrap();
-        let next_player = match self.players.len()-1 == self.current_player {
-            true => 0,
-            false => self.current_player + 1,
-        };
-        // check if user is current player
-        if self.players[self.current_player].id == user_id {
-            match self.players.len()-1 == self.current_player {
-                true => self.current_player = 0,
-                false => self.current_player += 1,
-            } 
-        } else {
-            return 5;
-        }
         // Update guessed letters vector
-        self.add_letter_guessed(c); 
+        if !self.add_letter_guessed(c) {
+            return 5
+        } 
         // guess letters
         let mut something_guessed = false;
         for letter in &mut self.word.letters {
@@ -130,7 +103,6 @@ impl Game {
             }
         }
         if something_guessed && !self.solved() {
-            let _x = event.send(EventData::new(next_player, self.game_id, String::from("letter_correct")));
             return 2;
         }
         // check lives
@@ -138,26 +110,32 @@ impl Game {
         if self.lives == 0 || self.solved() {
             if self.solved() {
                 self.lives += 1; //Increment lives to get the amount of lives that where left when the game was won
-                let _x = event.send(EventData::new(0, self.game_id, String::from("solved")));
                 self.game_state = GameState::Done(true);
                 return 1;
             } else if self.lives == 0 {
-                let _x = event.send(EventData::new(0, self.game_id, String::from("lost")));
                 self.game_state = GameState::Done(false);
                 return 4;
             }
         }
-        let _x = event.send(EventData::new(next_player, self.game_id, String::from("letter_false")));
         3
     }
 
     /// Adds the input letter to the list of guessed characters
-    fn add_letter_guessed(&mut self, c: char) {
+    /// # Returns
+    /// - `true` letter was not yet guessed
+    /// - `false` letter was already guessed
+    fn add_letter_guessed(&mut self, c: char) -> bool {
         for letter in &mut self.guessed_letters {
             if letter.character == c {
-                letter.guessed = true;
+                if letter.guessed {
+                    return false
+                } else {
+                    letter.guessed = true;
+                    return true
+                }
             }
         }
+        true
     }
 
     /// Returns a string containing all guessed letters.
@@ -190,18 +168,13 @@ impl Game {
         true
     }
 
-    /// # Returns
-    /// `Some(Player)` when the player was found
-    /// 
-    /// `None` when the player with the id does not exist
-    fn player_by_id(&self, id: i32) -> Option<&Player> {
-        for player in &self.players {
-            if player.id == id {
-                return Some(player);
-            }
-        }
-        None
-    }
+    ///// # Returns
+    ///// `Some(Player)` when the player was found
+    ///// 
+    ///// `None` when the player with the id does not exist
+    //fn player_by_id(&self, id: Uuid) -> Option<&Player> {
+    //    self.players.get(&id)
+    //}
 
     /// # Returns
     /// How many lives are left
@@ -211,38 +184,25 @@ impl Game {
 
     /// # Returns
     /// The game id of this game
-    pub fn game_id(&self) -> i32 {
+    pub fn game_id(&self) -> Uuid {
         self.game_id
     }
 
     /// Returns the names of the teammates of the player with the id
-    pub fn teammates(&self, player_id: i32) -> String {
+    pub fn teammates(&self, player_id: Uuid) -> String {
         let mut s = String::new();
         let mut first_player = true;
-        for player in &self.players {
-            if player.id != player_id {
+        for (k, v) in &self.players {
+            if *k != player_id {
                 if first_player {
                     first_player = false;
                 } else {
                     s.push_str(", ");
                 }
-                s.push_str(&player.name);
+                s.push_str(&v.name);
             }
         }
         s
-    }
-
-    /// Checks if it is the players turn
-    pub fn is_players_turn(&self, player_id: i32) -> bool {
-        self.players[self.current_player].id == player_id
-    }
-
-    /// # Return
-    /// `Some(usize)` the position of the player in the turn order
-    /// 
-    /// `None` the player with the id was not found
-    pub fn player_turn_position(&self, player_id: i32) -> Option<usize> {
-        self.player_by_id(player_id).map(|player| player.turn_position)
     }
 
     /// Checks if the game has been completed
@@ -260,17 +220,12 @@ impl Game {
             _ => None,
         }
     }
-
-    /// Returns a vector containing all players
-    pub fn players(&self) -> &Vec<Player> {
-        &self.players
-    }
 }
 
 /// The different states a game can be in
 enum GameState {
-    /// Symbolizes that the game has not yet started
-    Waiting,
+    /// Symbolizes that the game is running.
+    Running,
     /// Symbolizes that this game is over. 
     /// 
     /// Boolean value determines if the game was won (`true`) or lost (`false`).
@@ -281,22 +236,17 @@ enum GameState {
 #[derive(Eq, PartialEq)]
 pub struct Player {
     /// Unique number with which the player is identified by the server
-    pub id: i32,
-    /// The place in the turn order for this player
-    /// 
-    /// Starts at `0`
-    pub turn_position: usize,
-    /// The name of this player
-    name: String,
+    pub id: Uuid,
+    /// The name of the player (currently not used)
+    pub name: String,
 }
 
 impl Player {
     /// Create a new player
-    pub fn new(id: i32, name: String, turn_position: usize) -> Self {
+    pub fn new(id: Uuid) -> Self {
         Self { 
-            id, 
-            name,
-            turn_position,
+            id,
+            name: String::from("steve"),
         }
     }
 }
