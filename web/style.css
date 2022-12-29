@@ -9,6 +9,7 @@ body {
     color: #ffe140;
     text-align: center;
     margin-top: 10px;
+    text-decoration: none;
 }
 
 .content-container {
@@ -24,6 +25,10 @@ body {
     position: absolute;
     bottom: 30px;
     left: 30px;
+}
+
+.link-no-decoration {
+    text-decoration: none;
 }
 
 /*Special formatting on phones devices*/
