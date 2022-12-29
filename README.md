@@ -8,7 +8,20 @@ User authentication is done by using cookies that store a unique user id.
 
 When the page is reloaded while in a game the game state is restored.
 
-# REST API
+## Building and running
+To build and run the server do the following:
+
+1. Clone the repository and cd into the main directory
+2. Make sure that the `rust toolchain` and `wasm-pack` are installed
+3. Run `./build_wasm.sh`
+4. Run `cargo run`
+
+This will start the server which can be accessed under `127.0.0.1:11511`.
+
+## WebAssembly
+WebAssembly is used to write as little JavaScript as possible. The Rust code that is compiled to WebAssembly can be found [here](wasm/).
+
+## REST API
 
 The communication between server and web browser is realized by a REST api, these are the available endpoints:
 
