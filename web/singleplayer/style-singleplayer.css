@@ -17,15 +17,11 @@
     width: fit-content;
 }
 
-#new-game-container {
-    margin-top: 25px;
-}
-
 #guess-text {
     color: white;
 }
 
-#button-container {
+#game-container {
     margin-top: 25px;
 }
 
@@ -58,9 +54,44 @@
     display: inline-block;
 }
 
+#image-container {
+    width: 300px;
+}
+
+#image {
+    height: 100px;
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+#game-over-container {
+    margin-top: 20px;
+}
+
+#you-won-text {
+    color: green;
+    text-align: center;
+}
+
+#you-lost-text {
+    color: red;
+    text-align: center;
+}
+
+#new-game-container {
+    margin-top: 25px;
+}
+
 /*Special formatting on phones devices*/
 @media (max-width: 600px) {
     #word-container {
         width: 80%;
     }
+
+    #new-game-container {
+        margin-left: 30%;
+        width: 60%;
+    }
+
 }

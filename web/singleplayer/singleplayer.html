@@ -32,12 +32,12 @@
             The word will go here
         </h5>
     </div>
-    <div class="content-container" id="button-container">
+    <div class="content-container" id="game-container">
         <div id="text-input">
             <p id="guess-text">Guess: <input type="" id="user-input" placeholder="Type letter or word"></p>
         </div>
         <div class="d-grid gap-2">
-            <button class="btn btn-success" id="button-new-game">
+            <button class="btn btn-success" id="button-submit">
                 Submit guess
             </button>
         </div>
@@ -61,7 +61,21 @@
                 0/10
             </h6>
         </div>
+        <div id="image-container">
+            <p class="placeholder-glow" id="image-placeholder">
+                <span class="placeholder clow-12 bg-secondary placeholder-lg" id="loading-image">Loading image...</span>
+            </p>
+            <img id="image" src="pictures/0.jpg" hidden>
+        </div>
         <!--TODO Implement showing of pictures-->
+    </div>
+    <div class="content-container" id="game-over-container" hidden>
+        <div id="game-won-container">
+            <h4 id="you-won-text">You won!</h4>
+        </div>
+        <div id="game-lost-container">
+            <h4 id="you-lost-text">You lost!</h4>
+        </div>
     </div>
     <div class="content-container" id="new-game-container">
         <div class="d-grid gap-2">
