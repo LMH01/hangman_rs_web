@@ -2,9 +2,10 @@ use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 use wasm_bindgen_futures::JsFuture;
 use web_sys::{Request, RequestInit, RequestMode, Response};
-use web_sys::console;
 
 /// Sends a get request to the specified url.
+/// 
+/// Response only works correctly if the returned value is formatted in json.
 #[wasm_bindgen]
 pub async fn get_request(url: String) -> Result<JsValue, JsValue> {
     send_request(url, Method::GET, None).await
@@ -18,9 +19,9 @@ pub async fn post_request(url: String) -> Result<JsValue, JsValue> {
 
 /// Sends a POST request to url with the specified java script value as data field.
 #[wasm_bindgen]
+#[allow(deprecated)]
 #[deprecated(note = "This function does not yet work properly, use `postData` located in `utils.js` instead.")]
 pub async fn post_request_data(url: String, data: JsValue) -> Result<JsValue, JsValue> {
-    console::log_1(&data);
     send_request(url, Method::POST, Some(&data)).await
 }
 
@@ -43,10 +44,8 @@ async fn send_request(url: String, method: Method, data: Option<&JsValue>) -> Re
     opts.mode(RequestMode::Cors);
 
     if data.is_some() {
-        console::log_1(&format!("Data: {:?}", &data).into());
         opts.body(data);
     }
-    console::log_1(&format!("Opts: {:?}", opts).into());
 
     let request = Request::new_with_str_and_init(&url, &opts)?;
 

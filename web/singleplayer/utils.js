@@ -15,7 +15,7 @@ async function postData(url = '', data = {}) {
  * @param {Map} additional_headers Additional headers that should be added to the request
  * @returns The response formatted as json
  */
-async function postData(url = '', data = {}, additional_headers) {
+async function postData(url = '', data = {}, additional_headers) {//TODO rename to postRequest
     const headers = new Headers;
     headers.append('Content-Type', 'application/json');
     if (additional_headers != undefined || additional_headers != null) {
@@ -35,4 +35,24 @@ async function postData(url = '', data = {}, additional_headers) {
       body: JSON.stringify(data) // body data type must match "Content-Type" header
     });
     return response.json(); // parses JSON response into native JavaScript objects
+}
+
+/**
+ * Submits a get request to the url
+ * @param {String} url The url to which the get request should be sent
+ * @returns The response
+ */
+async function getRequest(url = '') {
+  var word = await (await(fetch(url, {}))).text();
+  return word;
+}
+
+/**
+ * @param {String} name The name of the cookie
+ * @returns The cookie for the specified name
+ */
+function getCookie(name) {
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop().split(';').shift();
 }
