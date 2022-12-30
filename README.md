@@ -31,7 +31,7 @@ Path|Parameters|Return|Description
 -|-|-|-
 /singleplayer| - |singleplayer html page|Returns the html page for singleplayer mode
 /api/register|username|RegistrationData|Registers a player to the server
-/api/submit_char| character | integer in range 1-5|Submits a character for the game
+/api/guess| string | integer in range 1-5|Submits a character for the game
 /api/lives| - | string | The number of lives left
 /api/game_string| - | string | The game string
 /api/word| - | string | The correct word once the game has ended

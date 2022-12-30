@@ -40,14 +40,14 @@
             <p id="guess-text">Guess: <input type="" id="user-input" placeholder="Type letter or word"></p>
         </div>
         <div class="d-grid gap-2">
-            <button class="btn btn-success" id="button-submit">
+            <button class="btn btn-success" id="button-submit" onclick="guess()">
                 Submit guess
             </button>
         </div>
         <div id="guessed-letters-container">
             <h6 id="guessed-letters-title">Guessed letters:</h6>
             <div class="inner-container">
-                <p class="placeholder-glow">
+                <p class="placeholder-glow" id="guessed-letters-placeholder">
                     <span class="placeholder col-12 bg-secondary" id="loading-guessed-letters">Loading guessed letters...</span>
                 </p>
                 <h6 id="guessed-letters" hidden="true">

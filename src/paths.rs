@@ -1,6 +1,6 @@
 
 use std::{sync::RwLock, path::Path};
-use crate::{request_data::{Character, PlayerAuth, PlayerAuthError}, game::GameManager};
+use crate::{request_data::{PlayerAuth, PlayerAuthError}, game::GameManager};
 use rocket::{http::{ContentType, CookieJar, Cookie}, serde::json::Json, State, fs::NamedFile};
 use uuid::Uuid;
 
@@ -30,18 +30,18 @@ pub fn register(cookies: &CookieJar<'_>, game_manager: &State<RwLock<GameManager
     Json(result.player_id.to_string())
 }
 
-/// Submits a character to the game
+/// Submits a letter/word to the game
 /// 
 /// # Requires
-/// The user needs to send a character formatted in a json string in the post request body.
+/// The user needs to send a letter/word in the post request body.
 /// 
 /// # Return
-/// The result of [Game::guess_letter](../game/base_game/struct.Game.html#method.guess_letter)
-#[post("/api/submit_char", data = "<character>")]
-pub fn submit_char(game_manager: &State<RwLock<GameManager>>, player_auth: PlayerAuth, character: Json<Character>) -> (ContentType, String) {
+/// The result of [Game::guess](../game/base_game/struct.Game.html#method.guess)
+#[post("/api/guess", data = "<guess>")]
+pub fn submit_char(game_manager: &State<RwLock<GameManager>>, player_auth: PlayerAuth, guess: Json<String>) -> (ContentType, String) {
     let mut game_manager = game_manager.write().unwrap();
     let game = game_by_player_auth(&mut game_manager, player_auth).unwrap();
-    (ContentType::Text, game.guess_letter(character.character).to_string())
+    (ContentType::Text, game.guess(guess.0).to_string())
 }
 
 /// The amount of lives left

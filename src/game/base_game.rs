@@ -72,38 +72,47 @@ impl Game {
     /// `None` when the word is not yet guessed
     pub fn word(&self) ->  Option<String> {
         match self.game_state {
-            GameState::Done(_win) => Some(self.word.get()),
+            GameState::Done(_win) => Some(self.word.to_string()),
             _ => None,
         }
     }
 
-    /// Guesses a letter and returns a number to indicate that status
+    /// Guesses a letter/word and returns a number to indicate that status
     /// # Returns
-    /// `1` when the letter was correct and the word is guessed completely
+    /// `1` when the letter was correct and the word is guessed completely or when a correct word was guessed
     /// 
     /// `2` when letter was correct
     /// 
-    /// `3` when letter was false
+    /// `3` when letter/word was false
     /// 
-    /// `4` when letter was false and all lives are gone
+    /// `4` when letter/word was false and all lives are gone
     /// 
     /// '5' when the letter was already guessed
-    pub fn guess_letter(&mut self, c: char) -> i32 {
-        let c = c.to_uppercase().to_string().chars().next().unwrap();
-        // Update guessed letters vector
-        if !self.add_letter_guessed(c) {
-            return 5
-        } 
-        // guess letters
-        let mut something_guessed = false;
-        for letter in &mut self.word.letters {
-            if letter.character == c {
-                letter.guessed = true;
-                something_guessed = true;
+    pub fn guess(&mut self, guess: String) -> i32 {
+        if guess.len() == 1 {
+            // User submitted a single letter
+            let c = guess.chars().next().unwrap().to_uppercase().to_string().chars().next().unwrap();
+            // Update guessed letters vector
+            if !self.add_letter_guessed(c) {
+                return 5
+            } 
+            // guess letters
+            let mut something_guessed = false;
+            for letter in &mut self.word.letters {
+                if letter.character == c {
+                    letter.guessed = true;
+                    something_guessed = true;
+                }
             }
-        }
-        if something_guessed && !self.solved() {
-            return 2;
+            if something_guessed && !self.solved() {
+                return 2;
+            }
+        } else {
+            // User submitted a word
+            // Check if word is correct
+            if self.word.to_string() == guess.to_ascii_uppercase() {
+                self.word.set_solved();
+            }
         }
         // check lives
         self.lives -= 1;
@@ -270,9 +279,17 @@ impl Word {
         }
     }
 
-    /// # Return
-    /// The word that this type represents
-    fn get(&self) -> String {
+    /// Marks all letters of this word solved
+    fn set_solved(&mut self) {
+        for l in self.letters.iter_mut() {
+            l.guessed = true;
+        }
+    }
+}
+
+impl ToString for Word {
+    /// Returns the word
+    fn to_string(&self) -> String {
         let mut s = String::new();
         for l in &self.letters {
             s.push(l.character);
