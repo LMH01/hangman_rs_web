@@ -11,14 +11,14 @@ use web_sys::{Request, RequestInit, RequestMode, Response};
 #[wasm_bindgen]
 pub async fn get_request(url: String, t: JsValue) -> Result<JsValue, JsValue> {
     if t.is_null() || !t.is_string() {
-        send_request(url, Method::GET, None, ResponseType::TEXT).await
+        send_request(url, Method::Get, None, ResponseType::Text).await
     } else {
         let response_type = match t.as_string().unwrap().as_str() {
-            "text" => ResponseType::TEXT,
-            "json" => ResponseType::JSON,
-            _ => ResponseType::JSON,
+            "text" => ResponseType::Text,
+            "json" => ResponseType::Json,
+            _ => ResponseType::Json,
         };
-        send_request(url, Method::GET, None, response_type).await
+        send_request(url, Method::Get, None, response_type).await
     }
 }
 
@@ -27,7 +27,7 @@ pub async fn get_request(url: String, t: JsValue) -> Result<JsValue, JsValue> {
 /// This function expects the response to be json.
 #[wasm_bindgen]
 pub async fn post_request(url: String) -> Result<JsValue, JsValue> {
-    send_request(url, Method::POST, None, ResponseType::JSON).await
+    send_request(url, Method::Post, None, ResponseType::Json).await
 }
 
 /// Sends a POST request to url with the specified java script value as data field.
@@ -37,19 +37,19 @@ pub async fn post_request(url: String) -> Result<JsValue, JsValue> {
 #[allow(deprecated)]
 #[deprecated(note = "This function does not yet work properly, use `postData` located in `utils.js` instead.")]
 pub async fn post_request_data(url: String, data: JsValue) -> Result<JsValue, JsValue> {
-    send_request(url, Method::POST, Some(&data), ResponseType::JSON).await
+    send_request(url, Method::Post, Some(&data), ResponseType::Json).await
 }
 
 /// Different types of http requests
 enum Method {
-    POST,
-    GET,
+    Post,
+    Get,
 }
 
 // Different type the response can have
 enum ResponseType {
-    TEXT,
-    JSON,
+    Text,
+    Json,
 }
 
 /// Sends a request to the url with the specified method. Returns the response as json.
@@ -59,8 +59,8 @@ enum ResponseType {
 async fn send_request(url: String, method: Method, data: Option<&JsValue>, response_type: ResponseType) -> Result<JsValue, JsValue> {
     let mut opts = RequestInit::new();
     match method {
-        Method::POST => opts.method("POST"),
-        Method::GET => opts.method("GET"),
+        Method::Post => opts.method("POST"),
+        Method::Get => opts.method("GET"),
     };
     opts.mode(RequestMode::Cors);
 
@@ -81,8 +81,8 @@ async fn send_request(url: String, method: Method, data: Option<&JsValue>, respo
 
     // Convert this other `Promise` into a rust `Future`.
     let json = match response_type {
-        ResponseType::JSON => JsFuture::from(resp.json()?).await?,
-        ResponseType::TEXT => JsFuture::from(resp.text()?).await?,
+        ResponseType::Json => JsFuture::from(resp.json()?).await?,
+        ResponseType::Text => JsFuture::from(resp.text()?).await?,
     };
 
     // Send the JSON response back to JS.
