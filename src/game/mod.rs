@@ -1,4 +1,4 @@
-use std::{fs, collections::{HashMap, HashSet}};
+use std::{fs, collections::{HashMap, HashSet, LinkedList}};
 use rand::Rng;
 use uuid::Uuid;
 
@@ -11,6 +11,11 @@ pub mod base_game;
 /// 
 /// Should not be set higher than 10 because images will fail to load.
 const MAX_LIVES: i32 = 7;
+
+/// The maximum amount of active games at the same time.
+/// 
+/// If this number is reached the oldest game is deleted to make space for a new game.
+const MAX_ACTIVE_GAMES: usize = 1000;
 
 /// Used to manage all currently running games.
 /// 
@@ -27,6 +32,9 @@ pub struct GameManager {
     /// 
     /// It is also used to authorize the player against the server.
     player_ids: HashSet<Uuid>,
+    /// This list is used to remove the oldest uuid once the [MAX_ACTIVE_GAMES](constant.MAX_ACTIVE_GAMES.html) limit is reached
+    /// and a new game is registered.
+    player_id_history: LinkedList<Uuid>,
     /// All game ids that are currently in use.
     game_ids: HashSet<Uuid>,
 }
@@ -40,19 +48,25 @@ impl GameManager {
             games: HashMap::new(),
             words,
             player_ids: HashSet::new(), 
+            player_id_history: LinkedList::new(),
             game_ids: HashSet::new(),
         }
     }
 
     /// Registers a new game
-    /// # Params
-    /// `name` the name of the player that registers the new game
     /// # Returns
     /// [RegisterResult](struct.RegisterResult.html) the result of the registration
     pub fn register_game(&mut self) -> RegisterResult {
         let game_id = self.free_game_id();
         let player_id = self.free_player_id();
         let game = Game::new(self, game_id, player_id);
+        self.player_id_history.push_back(player_id);
+        // Verify active game limit
+        if self.player_id_history.len() > MAX_ACTIVE_GAMES {
+            // Game limit is reached
+            let player_id_to_delete = self.player_id_history.pop_front().unwrap();
+            self.delete_game(player_id_to_delete);
+        }
         self.games.insert(player_id, game);
         RegisterResult {player_id}
     }
@@ -127,4 +141,22 @@ impl GameManager {
 pub struct RegisterResult {
     /// The id of the new player
     pub player_id: Uuid,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{GameManager, MAX_ACTIVE_GAMES};
+
+
+    #[test]
+    fn test_max_game_limit() {
+        let mut game_manager = GameManager::new();
+        let first_uuid = game_manager.register_game().player_id;
+        for _i in 1..=MAX_ACTIVE_GAMES {
+            game_manager.register_game();
+        }
+        let last_uuid = game_manager.register_game().player_id;
+        assert!(game_manager.game_by_player_id(first_uuid).is_none());
+        assert!(game_manager.game_by_player_id(last_uuid).is_some());
+    }
 }
