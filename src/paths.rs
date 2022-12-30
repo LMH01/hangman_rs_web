@@ -166,8 +166,8 @@ pub fn uuid_from_cookies(cookies: &CookieJar<'_>) -> Result<Uuid, PlayerAuthErro
     match cookies.get("uuid").map(|cookie| cookie.value().parse::<String>().unwrap()) {
         Some(id) => {
             match Uuid::parse_str(&id) {
-                Ok(uuid) => return Ok(uuid),
-                Err(_err) => return Err(PlayerAuthError::Invalid),
+                Ok(uuid) => Ok(uuid),
+                Err(_err) => Err(PlayerAuthError::Invalid),
             }
         },
         None => Err(PlayerAuthError::Missing),
