@@ -148,3 +148,11 @@ async function gameEnd(status) {
     }
     document.getElementById("game-over-container").hidden = false;
 }
+
+/**
+ * Requests the current game to be deleted and creates a new game
+ * */ 
+async function newGame() {
+    await (wasm_bindgen.get_request("api/delete_game"));
+    window.location.href = "/singleplayer";
+}
