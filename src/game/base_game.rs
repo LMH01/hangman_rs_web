@@ -312,9 +312,13 @@ struct Letter {
 impl Letter {
     /// Create a new character
     fn new(character: char) -> Self {
+        let mut guessed = false;
+        if character == '-' {
+            guessed = true;
+        }
         Self { 
             character, 
-            guessed: false 
+            guessed, 
         }
     }
 }
