@@ -94,8 +94,10 @@ impl Game {
             let c = guess.chars().next().unwrap().to_uppercase().to_string().chars().next().unwrap();
             // Update guessed letters vector
             if !self.add_letter_guessed(c) {
+                self.guessed_letters.sort();
                 return 5
             } 
+            self.guessed_letters.sort();
             // guess letters
             let mut something_guessed = false;
             for letter in &mut self.word.letters {
@@ -299,6 +301,7 @@ impl ToString for Word {
 }
 
 /// Letter in a word
+#[derive(PartialEq, PartialOrd, Ord, Eq)]
 struct Letter {
     /// Character of this letter
     character: char,
