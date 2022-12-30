@@ -66,7 +66,7 @@ async function updatePage() {
  * Update the games word
  */
 async function updateWord() {
-    let word = await (getRequest("api/game_string"))
+    let word = await (wasm_bindgen.get_request("api/game_string"));
     document.getElementById("word").innerHTML = word;
     document.getElementById("word-placeholder").hidden = true;
     document.getElementById("word").hidden = false;

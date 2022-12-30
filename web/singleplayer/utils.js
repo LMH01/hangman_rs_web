@@ -38,16 +38,6 @@ async function postData(url = '', data = {}, additional_headers) {//TODO rename 
 }
 
 /**
- * Submits a get request to the url
- * @param {String} url The url to which the get request should be sent
- * @returns The response
- */
-async function getRequest(url = '') {
-  var word = await (await(fetch(url, {}))).text();
-  return word;
-}
-
-/**
  * @param {String} name The name of the cookie
  * @returns The cookie for the specified name
  */
