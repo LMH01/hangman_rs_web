@@ -1,6 +1,6 @@
 /*All base formatting is done for desktop view*/
 #word-container {
-    width: 350px;
+    width: fit-content;
 }
 
 #loading-word {
@@ -95,5 +95,12 @@
         position: absolute;
         bottom: 15px;
         left: 30px;
+    }
+}
+
+@media (min-width: 600px) {
+    #word-container {
+        min-width: 350px;
+        max-width: 70%;
     }
 }
