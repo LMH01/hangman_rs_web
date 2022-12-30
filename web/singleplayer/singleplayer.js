@@ -36,8 +36,12 @@ async function preparePage() {
                 updatePage();
                 break;
             case 'won':// player has won the game
+                updatePage();
+                gameEnd(true);
                 break;
             case 'lost':// player has lost the game
+                updatePage();
+                gameEnd(false);
                 break;
         }
     }
@@ -111,7 +115,7 @@ async function guess() {
     switch (response) {
       case 1: 
         updatePage();
-        //gameEnd(true);
+        gameEnd(true);
         break;
       case 2: 
         updatePage();
@@ -121,7 +125,7 @@ async function guess() {
         break;
       case 4: 
         updatePage();
-        //gameEnd(false);
+        gameEnd(false);
         break;
       case 5:
         alert("This character was already submitted");
@@ -129,4 +133,18 @@ async function guess() {
         break;
     }
     document.getElementById("user-input").value = "";
+}
+
+async function gameEnd(status) {
+    document.getElementById("input-container").hidden = true;
+    if (status) {
+        document.getElementById("game-won-container").hidden = false;
+        document.getElementById("game-lost-container").hidden = true;
+    } else {
+        document.getElementById("game-won-container").hidden = true;
+        document.getElementById("game-lost-container").hidden = false;
+        let word = await (wasm_bindgen.get_request("api/word"));
+        document.getElementById("word").innerHTML = word;
+    }
+    document.getElementById("game-over-container").hidden = false;
 }

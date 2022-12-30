@@ -145,7 +145,7 @@ pub fn registered(cookies: &CookieJar<'_>, game_manager: &State<RwLock<GameManag
             match game.completed() {
                 Some(win) => {
                     if win {
-                        (ContentType::Text, String::from("win"))
+                        (ContentType::Text, String::from("won"))
                     } else {
                         (ContentType::Text, String::from("lost"))
                     }

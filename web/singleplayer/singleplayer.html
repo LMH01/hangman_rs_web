@@ -35,14 +35,24 @@
             The word will go here
         </h5>
     </div>
-    <div class="content-container" id="game-container">
-        <div id="text-input">
-            <p id="guess-text">Guess: <input type="" id="user-input" placeholder="Type letter or word"></p>
+    <div class="content-container" id="game-over-container" hidden>
+        <div id="game-won-container" hidden>
+            <h4 id="you-won-text">You won!</h4>
         </div>
-        <div class="d-grid gap-2">
-            <button class="btn btn-success" id="button-submit" onclick="guess()">
-                Submit guess
-            </button>
+        <div id="game-lost-container" hidden>
+            <h4 id="you-lost-text">You lost!</h4>
+        </div>
+    </div>
+    <div class="content-container" id="game-container">
+        <div id="input-container">
+            <div id="text-input">
+                <p id="guess-text">Guess: <input type="" id="user-input" placeholder="Type letter or word"></p>
+            </div>
+            <div class="d-grid gap-2">
+                <button class="btn btn-success" id="button-submit" onclick="guess()">
+                    Submit guess
+                </button>
+            </div>
         </div>
         <div id="guessed-letters-container">
             <h6 id="guessed-letters-title">Guessed letters:</h6>
@@ -71,14 +81,6 @@
             <img id="image" src="pictures/0.jpg" hidden>
         </div>
         <!--TODO Implement showing of pictures-->
-    </div>
-    <div class="content-container" id="game-over-container" hidden>
-        <div id="game-won-container">
-            <h4 id="you-won-text">You won!</h4>
-        </div>
-        <div id="game-lost-container">
-            <h4 id="you-lost-text">You lost!</h4>
-        </div>
     </div>
     <div class="content-container" id="new-game-container">
         <div class="d-grid gap-2">
