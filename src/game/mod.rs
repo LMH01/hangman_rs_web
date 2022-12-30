@@ -10,7 +10,7 @@ pub mod base_game;
 /// Determines how many lives players have when playing a game.
 /// 
 /// Should not be set higher than 10 because images will fail to load.
-const MAX_LIVES: i32 = 10;
+const MAX_LIVES: i32 = 7;
 
 /// Used to manage all currently running games.
 /// 
