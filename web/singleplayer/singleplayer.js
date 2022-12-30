@@ -45,6 +45,20 @@ async function preparePage() {
                 break;
         }
     }
+    setEventListeners();
+}
+
+/**
+ * Sets all event listeners
+ */
+async function setEventListeners() {
+    let input = document.getElementById("user-input");
+    input.addEventListener("keypress", function(event) {
+        if (event.key == "Enter") {
+            event.preventDefault();
+            document.getElementById("button-submit").click();
+        }
+    });
 }
 
 /**
