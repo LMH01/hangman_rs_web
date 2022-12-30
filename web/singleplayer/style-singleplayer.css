@@ -92,6 +92,8 @@
     #new-game-container {
         margin-left: 30%;
         width: 60%;
+        position: absolute;
+        bottom: 15px;
+        left: 30px;
     }
-
 }
