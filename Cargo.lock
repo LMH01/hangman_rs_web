@@ -947,6 +947,7 @@ dependencies = [
  "tokio-stream",
  "tokio-util",
  "ubyte",
+ "uuid",
  "version_check",
  "yansi",
 ]
@@ -992,6 +993,7 @@ dependencies = [
  "time",
  "tokio",
  "uncased",
+ "uuid",
 ]
 
 [[package]]
@@ -1387,6 +1389,7 @@ checksum = "422ee0de9031b5b948b97a8fc04e3aa35230001a722ddd27943e0be31564ce4c"
 dependencies = [
  "getrandom",
  "rand",
+ "serde",
  "uuid-macro-internal",
 ]
 
